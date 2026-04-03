@@ -1532,8 +1532,8 @@ function switchAdminTab(tab) {
 
 async function loadAdminData() {
   const r = await api('admin/getModules');
-  if (!r.ok) return;
-  STATE.adminModules = r.modules;
+  if (!r.ok) { console.error('loadAdminData failed:', r.reason); STATE.adminModules = []; }
+  else STATE.adminModules = r.modules;
   renderAdminModuleList();
   populateModuleSelects();
 
