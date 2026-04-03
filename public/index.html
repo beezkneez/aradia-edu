@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Aradia EDU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   CSS VARIABLES & THEMES
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --transition: 0.2s ease;
+}
+
+[data-theme="dark"] {
+  --bg: #0f0f13;
+  --bg2: #1a1a24;
+  --bg3: #24243a;
+  --surface: #1e1e2e;
+  --surface2: #282840;
+  --border: #2e2e4a;
+  --text: #e8e8f0;
+  --text2: #a0a0b8;
+  --text3: #6a6a80;
+  --accent: #7c5cfc;
+  --accent2: #9b7cff;
+  --accent-bg: rgba(124,92,252,0.12);
+  --success: #4ade80;
+  --success-bg: rgba(74,222,128,0.12);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251,191,36,0.12);
+  --danger: #f87171;
+  --danger-bg: rgba(248,113,113,0.12);
+  --sidebar-bg: #16162a;
+  --sidebar-active: rgba(124,92,252,0.18);
+  --header-bg: rgba(15,15,19,0.85);
+}
+
+[data-theme="light"] {
+  --bg: #f4f5f7;
+  --bg2: #ffffff;
+  --bg3: #eef0f4;
+  --surface: #ffffff;
+  --surface2: #f0f1f5;
+  --border: #e0e2e8;
+  --text: #1a1a2e;
+  --text2: #5a5a7a;
+  --text3: #9a9ab0;
+  --accent: #6c4ce0;
+  --accent2: #8b6cf0;
+  --accent-bg: rgba(108,76,224,0.08);
+  --success: #22c55e;
+  --success-bg: rgba(34,197,94,0.08);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245,158,11,0.08);
+  --danger: #ef4444;
+  --danger-bg: rgba(239,68,68,0.08);
+  --sidebar-bg: #ffffff;
+  --sidebar-active: rgba(108,76,224,0.1);
+  --header-bg: rgba(244,245,247,0.85);
+}
+
+[data-theme="aradia"] {
+  --bg: #1a0a0a;
+  --bg2: #2a1218;
+  --bg3: #3a1a22;
+  --surface: #2a1218;
+  --surface2: #3a1a22;
+  --border: #4a2232;
+  --text: #f0e0e0;
+  --text2: #c0a0a0;
+  --text3: #806060;
+  --accent: #e04060;
+  --accent2: #f06080;
+  --accent-bg: rgba(224,64,96,0.15);
+  --success: #4ade80;
+  --success-bg: rgba(74,222,128,0.12);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251,191,36,0.12);
+  --danger: #f87171;
+  --danger-bg: rgba(248,113,113,0.12);
+  --sidebar-bg: #200e14;
+  --sidebar-active: rgba(224,64,96,0.2);
+  --header-bg: rgba(26,10,10,0.85);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+a { color: var(--accent); text-decoration: none; }
+button { font-family: var(--font); cursor: pointer; border: none; outline: none; }
+input, select, textarea { font-family: var(--font); outline: none; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOGIN PAGE
+   ═══════════════════════════════════════════════════════════════════════════ */
+#page_login {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; background: var(--bg);
+}
+.login-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 48px 40px; width: 380px; max-width: 90vw;
+  box-shadow: var(--shadow-lg); text-align: center;
+}
+.login-logo {
+  font-size: 32px; font-weight: 700; margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.login-sub { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+.login-input {
+  width: 100%; padding: 14px 16px; border-radius: var(--radius-sm);
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); font-size: 15px; margin-bottom: 12px;
+  transition: border var(--transition);
+}
+.login-input:focus { border-color: var(--accent); }
+.login-btn {
+  width: 100%; padding: 14px; border-radius: var(--radius-sm);
+  background: var(--accent); color: #fff; font-size: 15px;
+  font-weight: 600; margin-top: 8px; transition: all var(--transition);
+}
+.login-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+.login-error { color: var(--danger); font-size: 13px; margin-top: 12px; display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   APP SHELL
+   ═══════════════════════════════════════════════════════════════════════════ */
+#app_shell { display: none; height: 100vh; flex-direction: column; }
+
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 60px; background: var(--header-bg);
+  backdrop-filter: blur(20px); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 100;
+}
+.app-title {
+  font-size: 20px; font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header-nav { display: flex; gap: 4px; }
+.header-nav button {
+  padding: 8px 18px; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text2); font-size: 14px;
+  font-weight: 500; transition: all var(--transition);
+}
+.header-nav button:hover { color: var(--text); background: var(--surface2); }
+.header-nav button.active { color: var(--accent); background: var(--accent-bg); }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+.header-user {
+  font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 8px;
+}
+.header-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent-bg); display: flex; align-items: center;
+  justify-content: center; font-size: 14px; font-weight: 600; color: var(--accent);
+}
+.header-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.btn-logout {
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  background: var(--surface2); color: var(--text2); font-size: 13px;
+  transition: all var(--transition);
+}
+.btn-logout:hover { background: var(--danger-bg); color: var(--danger); }
+
+.app-body { flex: 1; overflow: hidden; display: flex; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGE CONTAINERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.page { display: none; width: 100%; height: 100%; overflow: hidden; }
+.page.active { display: flex; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEARNING MODULES PAGE
+   ═══════════════════════════════════════════════════════════════════════════ */
+#page_modules_list {
+  flex-direction: column; padding: 32px; overflow-y: auto;
+}
+.modules-header { margin-bottom: 24px; }
+.modules-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.modules-header p { color: var(--text2); font-size: 14px; }
+
+.modules-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+.module-card {
+  background: var(--surface); border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border); transition: all var(--transition);
+  cursor: pointer;
+}
+.module-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--accent); }
+.module-card-cover {
+  height: 160px; background: linear-gradient(135deg, var(--accent-bg), var(--surface2));
+  display: flex; align-items: center; justify-content: center; position: relative;
+  overflow: hidden;
+}
+.module-card-cover img { width: 100%; height: 100%; object-fit: cover; }
+.module-card-cover .cover-icon { font-size: 48px; opacity: 0.3; }
+.module-card-badge {
+  position: absolute; top: 12px; right: 12px; padding: 4px 10px;
+  border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+}
+.badge-complete { background: var(--success-bg); color: var(--success); }
+.badge-due { background: var(--warning-bg); color: var(--warning); }
+.badge-overdue { background: var(--danger-bg); color: var(--danger); }
+
+.module-card-body { padding: 20px; }
+.module-card-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.module-card-desc { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
+.module-card-meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text3); }
+
+.progress-bar-wrap {
+  width: 100%; height: 6px; background: var(--bg3); border-radius: 3px;
+  margin-top: 12px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px; transition: width 0.5s ease;
+}
+.progress-bar-fill.complete { background: linear-gradient(90deg, var(--success), #22d55e); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODULE VIEWER (slideshow)
+   ═══════════════════════════════════════════════════════════════════════════ */
+#page_module_viewer { flex-direction: row; }
+
+.viewer-sidebar {
+  width: 300px; min-width: 300px; background: var(--sidebar-bg);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.viewer-sidebar-header {
+  padding: 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.viewer-sidebar-header h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.viewer-sidebar-header .viewer-progress-text { font-size: 12px; color: var(--text2); }
+
+.viewer-chapters {
+  flex: 1; overflow-y: auto; padding: 12px;
+}
+.chapter-group { margin-bottom: 8px; }
+.chapter-title {
+  padding: 10px 12px; font-size: 13px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.5px; display: flex;
+  align-items: center; gap: 8px; cursor: pointer; border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+.chapter-title:hover { background: var(--surface2); }
+.chapter-title .ch-icon { font-size: 16px; transition: transform var(--transition); }
+.chapter-title.expanded .ch-icon { transform: rotate(90deg); }
+.chapter-title .ch-check { margin-left: auto; color: var(--success); font-size: 14px; }
+
+.chapter-pages { padding-left: 12px; display: none; }
+.chapter-pages.expanded { display: block; }
+
+.page-item {
+  padding: 8px 12px; font-size: 13px; color: var(--text2);
+  border-radius: var(--radius-sm); cursor: pointer; display: flex;
+  align-items: center; gap: 8px; margin-bottom: 2px;
+  transition: all var(--transition);
+}
+.page-item:hover { background: var(--surface2); color: var(--text); }
+.page-item.active { background: var(--sidebar-active); color: var(--accent); }
+.page-item .page-check { margin-left: auto; opacity: 0; color: var(--success); font-size: 14px; }
+.page-item.completed .page-check { opacity: 1; }
+.page-item .page-num { font-size: 11px; color: var(--text3); min-width: 20px; }
+
+.viewer-sidebar-footer {
+  padding: 16px; border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.btn-back-modules {
+  width: 100%; padding: 10px; border-radius: var(--radius-sm);
+  background: var(--surface2); color: var(--text2); font-size: 13px;
+  font-weight: 500; transition: all var(--transition); display: flex;
+  align-items: center; justify-content: center; gap: 6px;
+}
+.btn-back-modules:hover { background: var(--accent-bg); color: var(--accent); }
+
+/* Viewer main content */
+.viewer-main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+.viewer-content {
+  flex: 1; overflow-y: auto; display: flex; align-items: center;
+  justify-content: center; padding: 40px;
+}
+.slide-container {
+  max-width: 900px; width: 100%; min-height: 500px;
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); overflow: hidden; position: relative;
+}
+.slide-bg {
+  position: absolute; inset: 0; background-size: cover;
+  background-position: center; opacity: 0.2;
+}
+.slide-inner {
+  position: relative; z-index: 1; padding: 48px;
+}
+.slide-title {
+  font-size: 28px; font-weight: 700; margin-bottom: 24px;
+  line-height: 1.3;
+}
+.slide-body { font-size: 16px; line-height: 1.8; color: var(--text2); }
+.slide-body h1, .slide-body h2, .slide-body h3 { color: var(--text); margin: 20px 0 10px; }
+.slide-body ul, .slide-body ol { padding-left: 24px; margin: 12px 0; }
+.slide-body li { margin: 6px 0; }
+.slide-body img { max-width: 100%; border-radius: var(--radius-sm); margin: 16px 0; }
+
+/* Video embed */
+.slide-video {
+  margin: 24px 0; border-radius: var(--radius-sm); overflow: hidden;
+  position: relative; background: #000;
+}
+.slide-video iframe, .slide-video video {
+  width: 100%; aspect-ratio: 16/9; border: none; display: block;
+}
+.video-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; flex-direction: column; gap: 8px;
+  z-index: 10;
+}
+.video-overlay.hidden { display: none; }
+.video-progress-bar {
+  width: 80%; height: 4px; background: rgba(255,255,255,0.2);
+  border-radius: 2px; overflow: hidden;
+}
+.video-progress-fill {
+  height: 100%; background: var(--accent); border-radius: 2px;
+  transition: width 0.3s linear;
+}
+
+/* Slide navigation bar */
+.viewer-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px; background: var(--surface);
+  border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.viewer-nav-info { font-size: 13px; color: var(--text2); }
+.viewer-nav-buttons { display: flex; gap: 8px; }
+.btn-nav {
+  padding: 10px 24px; border-radius: var(--radius-sm); font-size: 14px;
+  font-weight: 500; transition: all var(--transition);
+}
+.btn-prev { background: var(--surface2); color: var(--text2); }
+.btn-prev:hover { background: var(--bg3); color: var(--text); }
+.btn-next { background: var(--accent); color: #fff; }
+.btn-next:hover { background: var(--accent2); }
+.btn-next:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-complete {
+  background: var(--success); color: #fff; padding: 10px 24px;
+  border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+}
+.btn-complete:hover { opacity: 0.9; }
+
+/* Module completion overlay */
+.completion-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.completion-card {
+  background: var(--surface); border-radius: var(--radius); padding: 48px;
+  text-align: center; max-width: 440px;
+}
+.completion-icon { font-size: 64px; margin-bottom: 16px; }
+.completion-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+.completion-sub { color: var(--text2); margin-bottom: 24px; }
+.completion-btn {
+  padding: 12px 32px; border-radius: var(--radius-sm);
+  background: var(--accent); color: #fff; font-size: 15px; font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MANUALS PAGE
+   ═══════════════════════════════════════════════════════════════════════════ */
+#page_manuals { flex-direction: row; }
+
+.manuals-sidebar {
+  width: 340px; min-width: 340px; background: var(--sidebar-bg);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+}
+.manuals-sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.manuals-sidebar-header h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.manuals-search {
+  width: 100%; padding: 10px 14px 10px 36px; border-radius: var(--radius-sm);
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  font-size: 14px; transition: border var(--transition);
+}
+.manuals-search:focus { border-color: var(--accent); }
+.search-wrap { position: relative; }
+.search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text3); font-size: 14px; pointer-events: none;
+}
+.manuals-filter {
+  display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap;
+}
+.filter-btn {
+  padding: 5px 12px; border-radius: 20px; font-size: 12px;
+  background: var(--surface2); color: var(--text2); transition: all var(--transition);
+}
+.filter-btn:hover, .filter-btn.active { background: var(--accent-bg); color: var(--accent); }
+
+.manuals-list { flex: 1; overflow-y: auto; padding: 12px; }
+.manual-item {
+  padding: 14px 16px; border-radius: var(--radius-sm); cursor: pointer;
+  margin-bottom: 4px; display: flex; align-items: center; gap: 12px;
+  transition: all var(--transition);
+}
+.manual-item:hover { background: var(--surface2); }
+.manual-item.active { background: var(--sidebar-active); }
+.manual-icon { font-size: 24px; flex-shrink: 0; }
+.manual-info { flex: 1; min-width: 0; }
+.manual-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.manual-category { font-size: 12px; color: var(--text3); }
+.manual-fav {
+  font-size: 18px; cursor: pointer; opacity: 0.3; transition: all var(--transition);
+  flex-shrink: 0; background: none; color: var(--warning);
+}
+.manual-fav:hover { opacity: 0.7; }
+.manual-fav.favorited { opacity: 1; }
+
+.manuals-viewer {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  background: var(--bg2); overflow: hidden;
+}
+.manuals-viewer-empty {
+  text-align: center; color: var(--text3);
+}
+.manuals-viewer-empty .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+.manuals-viewer-empty p { font-size: 14px; }
+.manual-frame { width: 100%; height: 100%; border: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN PAGE
+   ═══════════════════════════════════════════════════════════════════════════ */
+#page_admin { flex-direction: column; overflow: hidden; }
+
+.admin-tabs {
+  display: flex; gap: 4px; padding: 16px 24px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0; overflow-x: auto;
+}
+.admin-tab-btn {
+  padding: 8px 18px; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text2); font-size: 13px;
+  font-weight: 500; white-space: nowrap; transition: all var(--transition);
+}
+.admin-tab-btn:hover { color: var(--text); background: var(--surface2); }
+.admin-tab-btn.active { color: var(--accent); background: var(--accent-bg); }
+
+.admin-content { flex: 1; overflow-y: auto; padding: 24px; }
+.admin-panel { display: none; }
+.admin-panel.active { display: block; }
+
+/* Admin: Module Builder */
+.admin-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.admin-section-header h3 { font-size: 18px; font-weight: 600; }
+.btn-primary {
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  background: var(--accent); color: #fff; font-size: 14px; font-weight: 500;
+  transition: all var(--transition);
+}
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary {
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  background: var(--surface2); color: var(--text2); font-size: 13px;
+  transition: all var(--transition);
+}
+.btn-secondary:hover { background: var(--bg3); color: var(--text); }
+.btn-danger {
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  background: var(--danger-bg); color: var(--danger); font-size: 13px;
+  transition: all var(--transition);
+}
+.btn-danger:hover { background: var(--danger); color: #fff; }
+
+.admin-module-list { display: flex; flex-direction: column; gap: 12px; }
+.admin-module-row {
+  display: flex; align-items: center; gap: 16px; padding: 16px 20px;
+  background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+  transition: all var(--transition);
+}
+.admin-module-row:hover { border-color: var(--accent); }
+.admin-module-info { flex: 1; }
+.admin-module-name { font-size: 15px; font-weight: 600; }
+.admin-module-meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.admin-module-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Toggle (from aradia-time pattern) */
+.admin-toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+.admin-toggle input { opacity: 0; width: 0; height: 0; }
+.admin-toggle .slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: var(--bg3); border-radius: 24px; transition: var(--transition);
+}
+.admin-toggle .slider::before {
+  content: ''; position: absolute; height: 18px; width: 18px;
+  left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+  transition: var(--transition);
+}
+.admin-toggle input:checked + .slider { background: var(--accent); }
+.admin-toggle input:checked + .slider::before { transform: translateX(20px); }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.toggle-label { font-size: 14px; color: var(--text); }
+
+/* Admin: Module Editor */
+.module-editor { display: none; }
+.module-editor.active { display: block; }
+.editor-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+}
+.editor-header h3 { font-size: 18px; font-weight: 600; flex: 1; }
+
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+.form-input {
+  width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  font-size: 14px; transition: border var(--transition);
+}
+.form-input:focus { border-color: var(--accent); }
+textarea.form-input { min-height: 80px; resize: vertical; }
+
+.chapter-editor-list { margin-top: 20px; }
+.chapter-editor-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
+}
+.chapter-editor-header {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: var(--surface2); cursor: pointer;
+}
+.chapter-editor-header h4 { flex: 1; font-size: 14px; font-weight: 600; }
+.chapter-editor-body { padding: 16px; display: none; }
+.chapter-editor-body.expanded { display: block; }
+
+.page-editor-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: var(--bg); border-radius: var(--radius-sm); margin-bottom: 8px;
+}
+.page-editor-row .page-title { flex: 1; font-size: 13px; }
+.page-editor-row .page-type { font-size: 11px; color: var(--text3); padding: 2px 8px; background: var(--surface2); border-radius: 10px; }
+
+/* Admin: Progress Table */
+.progress-table {
+  width: 100%; border-collapse: collapse; font-size: 14px;
+}
+.progress-table th {
+  text-align: left; padding: 12px 16px; font-size: 12px;
+  font-weight: 600; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.5px; border-bottom: 2px solid var(--border);
+}
+.progress-table td {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.progress-table tr:hover td { background: var(--surface2); }
+
+/* Admin: Manual Upload */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 40px; text-align: center; cursor: pointer;
+  transition: all var(--transition);
+}
+.upload-zone:hover { border-color: var(--accent); background: var(--accent-bg); }
+.upload-zone .upload-icon { font-size: 36px; opacity: 0.4; margin-bottom: 8px; }
+.upload-zone p { font-size: 14px; color: var(--text2); }
+.upload-zone .upload-hint { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; backdrop-filter: blur(4px);
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 32px; width: 480px; max-width: 90vw; max-height: 85vh;
+  overflow-y: auto; box-shadow: var(--shadow-lg);
+}
+.modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+
+/* Toast notifications */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+  font-size: 14px; z-index: 2000; display: flex; align-items: center; gap: 8px;
+  transform: translateY(100px); opacity: 0; transition: all 0.3s ease;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: var(--success); }
+.toast.error { border-color: var(--danger); }
+
+/* Empty states */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state p { font-size: 14px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .viewer-sidebar { width: 260px; min-width: 260px; }
+  .manuals-sidebar { width: 280px; min-width: 280px; }
+  .slide-inner { padding: 24px; }
+  .slide-title { font-size: 22px; }
+  .modules-grid { grid-template-columns: 1fr; }
+  .header-nav button { padding: 6px 12px; font-size: 13px; }
+}
+
+@media (max-width: 600px) {
+  .viewer-sidebar, .manuals-sidebar { display: none; }
+  .app-header { padding: 0 12px; }
+  #page_modules_list { padding: 16px; }
+  .admin-content { padding: 16px; }
+}
+
+/* Page editor modal */
+.page-edit-sections { display: flex; flex-direction: column; gap: 16px; }
+.page-edit-section { background: var(--bg); border-radius: var(--radius-sm); padding: 16px; }
+.page-edit-section h4 { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 10px; }
+
+/* Rich text editor basic */
+.rich-editor {
+  min-height: 200px; padding: 16px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 14px; line-height: 1.7;
+}
+.rich-editor:focus { border-color: var(--accent); outline: none; }
+.editor-toolbar {
+  display: flex; gap: 4px; padding: 8px; background: var(--surface2);
+  border: 1px solid var(--border); border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.editor-toolbar button {
+  padding: 6px 10px; border-radius: 4px; background: transparent;
+  color: var(--text2); font-size: 13px; transition: all var(--transition);
+}
+.editor-toolbar button:hover { background: var(--bg3); color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     LOGIN PAGE
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="page_login">
+  <div class="login-card">
+    <div class="login-logo">Aradia EDU</div>
+    <div class="login-sub">Learning & Development Portal</div>
+    <input id="login_email" class="login-input" type="text" placeholder="Email or Username" autocomplete="username">
+    <input id="login_pin" class="login-input" type="password" placeholder="PIN" inputmode="numeric" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div id="login_error" class="login-error"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     APP SHELL
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="app_shell">
+  <header class="app-header">
+    <div class="app-title">Aradia EDU</div>
+    <nav class="header-nav">
+      <button onclick="go('modules')" data-nav="modules">Learning Modules</button>
+      <button onclick="go('manuals')" data-nav="manuals">Manuals</button>
+      <button onclick="go('admin')" data-nav="admin" id="nav_admin" style="display:none">Admin</button>
+    </nav>
+    <div class="header-right">
+      <div class="header-user">
+        <div class="header-avatar" id="header_avatar"></div>
+        <span id="header_name"></span>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- Modules List -->
+    <div id="page_modules_list" class="page">
+      <div class="modules-header">
+        <h2>My Learning Modules</h2>
+        <p>Complete your assigned training modules</p>
+      </div>
+      <div id="modules_grid" class="modules-grid"></div>
+      <div id="modules_empty" class="empty-state" style="display:none">
+        <div class="empty-icon">&#128218;</div>
+        <p>No modules assigned yet</p>
+      </div>
+    </div>
+
+    <!-- Module Viewer -->
+    <div id="page_module_viewer" class="page">
+      <div class="viewer-sidebar">
+        <div class="viewer-sidebar-header">
+          <h3 id="viewer_module_title"></h3>
+          <div class="viewer-progress-text" id="viewer_progress_text"></div>
+          <div class="progress-bar-wrap" style="margin-top:8px">
+            <div class="progress-bar-fill" id="viewer_progress_bar"></div>
+          </div>
+        </div>
+        <div class="viewer-chapters" id="viewer_chapters"></div>
+        <div class="viewer-sidebar-footer">
+          <button class="btn-back-modules" onclick="go('modules')">&#8592; Back to Modules</button>
+        </div>
+      </div>
+      <div class="viewer-main">
+        <div class="viewer-content" id="viewer_content"></div>
+        <div class="viewer-nav">
+          <div class="viewer-nav-info" id="viewer_nav_info"></div>
+          <div class="viewer-nav-buttons">
+            <button class="btn-nav btn-prev" id="btn_prev" onclick="navPrev()">&#8592; Back</button>
+            <button class="btn-nav btn-next" id="btn_next" onclick="navNext()">Next &#8594;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manuals -->
+    <div id="page_manuals" class="page">
+      <div class="manuals-sidebar">
+        <div class="manuals-sidebar-header">
+          <h3>Manuals</h3>
+          <div class="search-wrap">
+            <span class="search-icon">&#128269;</span>
+            <input class="manuals-search" id="manuals_search" type="text" placeholder="Search manuals..." oninput="filterManuals()">
+          </div>
+          <div class="manuals-filter" id="manuals_filter"></div>
+        </div>
+        <div class="manuals-list" id="manuals_list"></div>
+      </div>
+      <div class="manuals-viewer" id="manuals_viewer">
+        <div class="manuals-viewer-empty">
+          <div class="empty-icon">&#128214;</div>
+          <p>Select a manual to view</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin -->
+    <div id="page_admin" class="page">
+      <div class="admin-tabs">
+        <button class="admin-tab-btn active" onclick="switchAdminTab('builder')" data-tab="builder">Module Builder</button>
+        <button class="admin-tab-btn" onclick="switchAdminTab('manuals')" data-tab="manuals">Upload Manuals</button>
+        <button class="admin-tab-btn" onclick="switchAdminTab('progress')" data-tab="progress">Staff Progress</button>
+        <button class="admin-tab-btn" onclick="switchAdminTab('assignments')" data-tab="assignments">Assignments</button>
+      </div>
+      <div class="admin-content">
+        <!-- Module Builder Panel -->
+        <div id="admin_builder" class="admin-panel active">
+          <div id="admin_module_list_view">
+            <div class="admin-section-header">
+              <h3>Learning Modules</h3>
+              <button class="btn-primary" onclick="showCreateModuleModal()">+ New Module</button>
+            </div>
+            <div id="admin_modules_list" class="admin-module-list"></div>
+          </div>
+          <div id="admin_module_editor" class="module-editor"></div>
+        </div>
+
+        <!-- Upload Manuals Panel -->
+        <div id="admin_manuals" class="admin-panel">
+          <div class="admin-section-header">
+            <h3>Teaching Manuals</h3>
+          </div>
+          <div class="upload-zone" id="manual_upload_zone" onclick="document.getElementById('manual_file_input').click()">
+            <div class="upload-icon">&#128228;</div>
+            <p>Click or drag to upload manuals</p>
+            <div class="upload-hint">Supports .pdf and .doc/.docx files (up to 100MB)</div>
+          </div>
+          <input type="file" id="manual_file_input" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadManual(this)">
+          <div id="admin_manuals_list" style="margin-top:20px"></div>
+        </div>
+
+        <!-- Staff Progress Panel -->
+        <div id="admin_progress" class="admin-panel">
+          <div class="admin-section-header">
+            <h3>Staff Progress</h3>
+            <select class="form-input" style="width:auto" id="progress_module_select" onchange="loadProgress()">
+              <option value="">-- Select Module --</option>
+            </select>
+          </div>
+          <div id="progress_table_wrap"></div>
+        </div>
+
+        <!-- Assignments Panel -->
+        <div id="admin_assignments" class="admin-panel">
+          <div class="admin-section-header">
+            <h3>Module Assignments</h3>
+          </div>
+          <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+            <select class="form-input" style="width:auto" id="assign_module_select" onchange="loadAssignments()">
+              <option value="">-- Select Module --</option>
+            </select>
+            <button class="btn-primary" onclick="showAssignModal()">+ Assign Staff</button>
+          </div>
+          <div id="assignments_list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODALS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="modal_overlay" class="modal-overlay hidden"></div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Completion overlay -->
+<div id="completion_overlay" class="completion-overlay" style="display:none">
+  <div class="completion-card">
+    <div class="completion-icon">&#127942;</div>
+    <div class="completion-title" id="completion_title">Module Complete!</div>
+    <div class="completion-sub" id="completion_sub">You've completed all chapters in this module.</div>
+    <button class="completion-btn" onclick="closeCompletion()">Back to Modules</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════════════════════════ */
+const STATE = {
+  email: '', pin: '',
+  user: null,
+  currentPage: 'modules',
+  // Module viewer state
+  viewerModule: null,
+  viewerChapters: [],
+  viewerFlatPages: [],
+  viewerPageIndex: 0,
+  // Manuals
+  manuals: [],
+  manualsFilter: 'all',
+  selectedManual: null,
+  // Admin
+  adminModules: [],
+  editingModule: null,
+  staffList: [],
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   API HELPER
+   ═══════════════════════════════════════════════════════════════════════════ */
+async function api(endpoint, data = {}) {
+  try {
+    const r = await fetch('/api/' + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: STATE.email, pin: STATE.pin, ...data })
+    });
+    return await r.json();
+  } catch (e) {
+    console.error('API Error:', e);
+    return { ok: false, reason: 'Network error' };
+  }
+}
+
+async function apiUpload(type, file, extraFields = {}) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('email', STATE.email);
+  fd.append('pin', STATE.pin);
+  for (const [k, v] of Object.entries(extraFields)) fd.append(k, v);
+  const r = await fetch(`/api/admin/upload/${type}`, { method: 'POST', body: fd });
+  return await r.json();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUTH
+   ═══════════════════════════════════════════════════════════════════════════ */
+function doLogin() {
+  const email = document.getElementById('login_email').value.trim();
+  const pin = document.getElementById('login_pin').value.trim();
+  if (!email || !pin) return showLoginError('Please enter email and PIN');
+
+  STATE.email = email;
+  STATE.pin = pin;
+
+  api('login').then(r => {
+    if (!r.ok) return showLoginError(r.reason);
+    STATE.user = r.user;
+    localStorage.setItem('edu_email', email);
+    localStorage.setItem('edu_pin', pin);
+    enterApp();
+  });
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login_error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function doLogout() {
+  STATE.email = ''; STATE.pin = ''; STATE.user = null;
+  localStorage.removeItem('edu_email');
+  localStorage.removeItem('edu_pin');
+  document.getElementById('page_login').style.display = 'flex';
+  document.getElementById('app_shell').style.display = 'none';
+}
+
+function tryAutoLogin() {
+  const email = localStorage.getItem('edu_email');
+  const pin = localStorage.getItem('edu_pin');
+  if (email && pin) {
+    STATE.email = email; STATE.pin = pin;
+    api('login').then(r => {
+      if (r.ok) { STATE.user = r.user; enterApp(); }
+    });
+  }
+}
+
+// Enter key login
+document.addEventListener('DOMContentLoaded', () => {
+  ['login_email', 'login_pin'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+  });
+  tryAutoLogin();
+});
+
+function enterApp() {
+  document.getElementById('page_login').style.display = 'none';
+  document.getElementById('app_shell').style.display = 'flex';
+
+  // Set user info
+  const avatar = document.getElementById('header_avatar');
+  if (STATE.user.profile_pic) {
+    avatar.innerHTML = `<img src="${STATE.user.profile_pic}" alt="">`;
+  } else {
+    avatar.textContent = (STATE.user.name || STATE.user.email).charAt(0).toUpperCase();
+  }
+  document.getElementById('header_name').textContent = STATE.user.name || STATE.user.email;
+
+  // Show admin tab if admin/mod
+  if (STATE.user.isAdmin || STATE.user.isModerator) {
+    document.getElementById('nav_admin').style.display = '';
+  }
+
+  // Apply theme
+  if (STATE.user.preferred_theme) {
+    document.documentElement.setAttribute('data-theme', STATE.user.preferred_theme);
+  }
+
+  go('modules');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NAVIGATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+function go(page) {
+  STATE.currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
+
+  if (page === 'modules') {
+    document.getElementById('page_modules_list').classList.add('active');
+    document.querySelector('[data-nav="modules"]').classList.add('active');
+    loadModules();
+  } else if (page === 'viewer') {
+    document.getElementById('page_module_viewer').classList.add('active');
+    document.querySelector('[data-nav="modules"]').classList.add('active');
+  } else if (page === 'manuals') {
+    document.getElementById('page_manuals').classList.add('active');
+    document.querySelector('[data-nav="manuals"]').classList.add('active');
+    loadManuals();
+  } else if (page === 'admin') {
+    document.getElementById('page_admin').classList.add('active');
+    document.querySelector('[data-nav="admin"]').classList.add('active');
+    loadAdminData();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEARNING MODULES - LIST
+   ═══════════════════════════════════════════════════════════════════════════ */
+async function loadModules() {
+  const r = await api('getMyModules');
+  if (!r.ok) return;
+
+  const grid = document.getElementById('modules_grid');
+  const empty = document.getElementById('modules_empty');
+
+  if (r.modules.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = r.modules.map(m => {
+    const pct = m.progress && parseInt(m.progress.total) > 0
+      ? Math.round((parseInt(m.progress.completed) / parseInt(m.progress.total)) * 100) : 0;
+    const isComplete = m.is_completed;
+
+    let badge = '';
+    if (isComplete) {
+      badge = '<span class="module-card-badge badge-complete">&#10003; Complete</span>';
+    } else if (m.due_date) {
+      const due = new Date(m.due_date);
+      const now = new Date();
+      if (due < now) badge = '<span class="module-card-badge badge-overdue">Overdue</span>';
+      else badge = `<span class="module-card-badge badge-due">Due ${formatDate(m.due_date)}</span>`;
+    }
+
+    return `
+      <div class="module-card" onclick="openModule(${m.id})">
+        <div class="module-card-cover">
+          ${m.cover_image ? `<img src="${m.cover_image}" alt="">` : '<div class="cover-icon">&#128218;</div>'}
+          ${badge}
+        </div>
+        <div class="module-card-body">
+          <div class="module-card-title">${esc(m.title)}</div>
+          <div class="module-card-desc">${esc(m.description || '').substring(0, 100)}</div>
+          <div class="module-card-meta">
+            <span>${m.chapter_count || 0} chapters &middot; ${m.page_count || 0} pages</span>
+            <span>${pct}%</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill ${isComplete ? 'complete' : ''}" style="width:${pct}%"></div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEARNING MODULES - VIEWER
+   ═══════════════════════════════════════════════════════════════════════════ */
+async function openModule(moduleId) {
+  const r = await api('getModule', { module_id: moduleId });
+  if (!r.ok) return toast(r.reason, 'error');
+
+  STATE.viewerModule = r.module;
+  STATE.viewerChapters = r.chapters;
+
+  // Flatten pages for navigation
+  STATE.viewerFlatPages = [];
+  for (const ch of r.chapters) {
+    for (const pg of ch.pages) {
+      STATE.viewerFlatPages.push({ ...pg, chapter_title: ch.title, chapter_id: ch.id });
+    }
+  }
+
+  if (STATE.viewerFlatPages.length === 0) {
+    return toast('This module has no content yet', 'error');
+  }
+
+  // Find first incomplete page
+  let startIdx = 0;
+  for (let i = 0; i < STATE.viewerFlatPages.length; i++) {
+    if (!STATE.viewerFlatPages[i].user_completed) { startIdx = i; break; }
+  }
+
+  STATE.viewerPageIndex = startIdx;
+  go('viewer');
+  renderViewer();
+}
+
+function renderViewer() {
+  const mod = STATE.viewerModule;
+  const chapters = STATE.viewerChapters;
+  const flatPages = STATE.viewerFlatPages;
+  const currentPage = flatPages[STATE.viewerPageIndex];
+
+  // Sidebar header
+  document.getElementById('viewer_module_title').textContent = mod.title;
+  const totalPages = flatPages.length;
+  const completedPages = flatPages.filter(p => p.user_completed).length;
+  const pct = totalPages > 0 ? Math.round((completedPages / totalPages) * 100) : 0;
+  document.getElementById('viewer_progress_text').textContent = `${completedPages} of ${totalPages} pages complete (${pct}%)`;
+  document.getElementById('viewer_progress_bar').style.width = pct + '%';
+  if (pct === 100) document.getElementById('viewer_progress_bar').classList.add('complete');
+  else document.getElementById('viewer_progress_bar').classList.remove('complete');
+
+  // Sidebar chapters
+  const chapEl = document.getElementById('viewer_chapters');
+  chapEl.innerHTML = chapters.map(ch => {
+    const chPages = ch.pages || [];
+    const chComplete = chPages.length > 0 && chPages.every(p => p.user_completed);
+    const isExpanded = currentPage && currentPage.chapter_id === ch.id;
+
+    return `
+      <div class="chapter-group">
+        <div class="chapter-title ${isExpanded ? 'expanded' : ''}" onclick="toggleChapter(this)">
+          <span class="ch-icon">&#9654;</span>
+          ${esc(ch.title)}
+          ${chComplete ? '<span class="ch-check">&#10003;</span>' : ''}
+        </div>
+        <div class="chapter-pages ${isExpanded ? 'expanded' : ''}">
+          ${chPages.map((pg, pi) => {
+            const flatIdx = flatPages.findIndex(fp => fp.id === pg.id);
+            const isActive = flatIdx === STATE.viewerPageIndex;
+            return `
+              <div class="page-item ${isActive ? 'active' : ''} ${pg.user_completed ? 'completed' : ''}" onclick="goToPage(${flatIdx})">
+                <span class="page-num">${pi + 1}</span>
+                ${esc(pg.title || 'Untitled Page')}
+                <span class="page-check">&#10003;</span>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Main content
+  renderSlide(currentPage);
+
+  // Nav info
+  document.getElementById('viewer_nav_info').textContent =
+    `Page ${STATE.viewerPageIndex + 1} of ${totalPages}`;
+
+  // Nav buttons
+  document.getElementById('btn_prev').style.display = STATE.viewerPageIndex > 0 ? '' : 'none';
+
+  const isLast = STATE.viewerPageIndex === totalPages - 1;
+  const btnNext = document.getElementById('btn_next');
+
+  if (isLast) {
+    btnNext.textContent = currentPage.user_completed ? 'Finish Module' : 'Complete & Finish';
+    btnNext.className = 'btn-nav btn-complete';
+    btnNext.onclick = () => completePage();
+  } else {
+    btnNext.textContent = 'Next \u2192';
+    btnNext.className = 'btn-nav btn-next';
+    btnNext.onclick = () => navNext();
+
+    // Disable next if video is required and not watched
+    if (currentPage.video_url && currentPage.video_required && !currentPage.user_video_watched) {
+      btnNext.disabled = true;
+      btnNext.title = 'Watch the video to continue';
+    } else {
+      btnNext.disabled = false;
+      btnNext.title = '';
+    }
+  }
+}
+
+function renderSlide(page) {
+  const container = document.getElementById('viewer_content');
+  if (!page) {
+    container.innerHTML = '<div class="empty-state"><p>No content</p></div>';
+    return;
+  }
+
+  let content = '';
+  const contentData = typeof page.content === 'string' ? JSON.parse(page.content || '{}') : (page.content || {});
+
+  // Background
+  const bgStyle = page.background_image
+    ? `style="background-image:url('${page.background_image}')"` : '';
+
+  // Video
+  let videoHtml = '';
+  if (page.video_url) {
+    const embedUrl = getEmbedUrl(page.video_url);
+    const isYouTube = page.video_url.includes('youtube') || page.video_url.includes('youtu.be');
+    const isGDrive = page.video_url.includes('drive.google');
+
+    if (isYouTube) {
+      // YouTube embed with no-skip controls via API
+      videoHtml = `
+        <div class="slide-video">
+          <div id="yt_player_wrap">
+            <iframe id="yt_iframe" src="${embedUrl}&enablejsapi=1&rel=0&modestbranding=1"
+              allowfullscreen allow="autoplay; encrypted-media"></iframe>
+          </div>
+          ${page.video_required && !page.user_video_watched ? `
+            <div class="video-overlay" id="video_overlay">
+              <div>&#9654; Watch this video to continue</div>
+              <div class="video-progress-bar"><div class="video-progress-fill" id="video_progress_fill"></div></div>
+              <div id="video_status_text" style="font-size:12px;opacity:0.7">Play the video to begin</div>
+            </div>
+          ` : ''}
+        </div>`;
+    } else if (isGDrive) {
+      videoHtml = `
+        <div class="slide-video">
+          <iframe src="${embedUrl}" allowfullscreen></iframe>
+        </div>`;
+    } else {
+      videoHtml = `
+        <div class="slide-video">
+          <video controls controlslist="noplaybackrate" ${page.video_required ? 'id="local_video"' : ''}>
+            <source src="${page.video_url}">
+          </video>
+        </div>`;
+    }
+  }
+
+  // HTML body content
+  const bodyHtml = contentData.html || contentData.text || '';
+
+  container.innerHTML = `
+    <div class="slide-container">
+      ${page.background_image ? `<div class="slide-bg" ${bgStyle}></div>` : ''}
+      <div class="slide-inner">
+        <div class="slide-title">${esc(page.title || '')}</div>
+        ${videoHtml}
+        <div class="slide-body">${bodyHtml}</div>
+      </div>
+    </div>`;
+
+  // Setup video tracking for required videos
+  if (page.video_url && page.video_required && !page.user_video_watched) {
+    setupVideoTracking(page);
+  }
+}
+
+function getEmbedUrl(url) {
+  // YouTube
+  if (url.includes('youtube.com/watch')) {
+    const vid = new URL(url).searchParams.get('v');
+    return `https://www.youtube.com/embed/${vid}?`;
+  }
+  if (url.includes('youtu.be/')) {
+    const vid = url.split('youtu.be/')[1].split('?')[0];
+    return `https://www.youtube.com/embed/${vid}?`;
+  }
+  if (url.includes('youtube.com/embed')) return url;
+
+  // Google Drive
+  if (url.includes('drive.google.com/file/d/')) {
+    const fileId = url.match(/\/d\/([^/]+)/)?.[1];
+    if (fileId) return `https://drive.google.com/file/d/${fileId}/preview`;
+  }
+
+  return url;
+}
+
+function setupVideoTracking(page) {
+  // For YouTube: use postMessage API to track progress
+  const iframe = document.getElementById('yt_iframe');
+  if (iframe) {
+    let checkInterval;
+    let videoCompleted = false;
+
+    // We'll use a timer-based approach since YT API in iframes is complex
+    // After the user spends enough time on the page, we mark it as watched
+    const overlay = document.getElementById('video_overlay');
+    const statusText = document.getElementById('video_status_text');
+    const progressFill = document.getElementById('video_progress_fill');
+
+    // Simple approach: track time on page while video is visible
+    let elapsed = 0;
+    const minWatchTime = 30; // seconds minimum to count as "watched"
+
+    checkInterval = setInterval(() => {
+      elapsed++;
+      const pct = Math.min(100, (elapsed / minWatchTime) * 100);
+      if (progressFill) progressFill.style.width = pct + '%';
+      if (statusText) statusText.textContent = elapsed < minWatchTime
+        ? `Watching... ${minWatchTime - elapsed}s remaining` : 'Video complete!';
+
+      if (elapsed >= minWatchTime && !videoCompleted) {
+        videoCompleted = true;
+        clearInterval(checkInterval);
+        if (overlay) overlay.classList.add('hidden');
+        markVideoWatched(page);
+      }
+    }, 1000);
+
+    // Store interval for cleanup
+    STATE._videoInterval = checkInterval;
+  }
+
+  // For HTML5 video
+  const localVideo = document.getElementById('local_video');
+  if (localVideo) {
+    // Prevent seeking forward
+    let lastTime = 0;
+    localVideo.addEventListener('timeupdate', () => {
+      if (localVideo.currentTime > lastTime + 2) {
+        localVideo.currentTime = lastTime;
+      }
+      lastTime = localVideo.currentTime;
+    });
+
+    localVideo.addEventListener('ended', () => {
+      markVideoWatched(page);
+    });
+  }
+}
+
+async function markVideoWatched(page) {
+  const currentFlat = STATE.viewerFlatPages[STATE.viewerPageIndex];
+  currentFlat.user_video_watched = true;
+
+  // Also update in chapters
+  for (const ch of STATE.viewerChapters) {
+    for (const pg of (ch.pages || [])) {
+      if (pg.id === page.id) pg.user_video_watched = true;
+    }
+  }
+
+  await api('markVideoWatched', {
+    page_id: page.id,
+    module_id: STATE.viewerModule.id,
+    chapter_id: currentFlat.chapter_id
+  });
+
+  // Re-enable next button
+  const btnNext = document.getElementById('btn_next');
+  btnNext.disabled = false;
+  btnNext.title = '';
+}
+
+function toggleChapter(el) {
+  el.classList.toggle('expanded');
+  el.nextElementSibling.classList.toggle('expanded');
+}
+
+function goToPage(idx) {
+  if (STATE._videoInterval) clearInterval(STATE._videoInterval);
+  STATE.viewerPageIndex = idx;
+  renderViewer();
+}
+
+function navPrev() {
+  if (STATE.viewerPageIndex > 0) {
+    if (STATE._videoInterval) clearInterval(STATE._videoInterval);
+    STATE.viewerPageIndex--;
+    renderViewer();
+  }
+}
+
+async function navNext() {
+  const current = STATE.viewerFlatPages[STATE.viewerPageIndex];
+
+  // Mark current page complete
+  if (!current.user_completed) {
+    await markPageComplete(current);
+  }
+
+  if (STATE.viewerPageIndex < STATE.viewerFlatPages.length - 1) {
+    if (STATE._videoInterval) clearInterval(STATE._videoInterval);
+    STATE.viewerPageIndex++;
+    renderViewer();
+  }
+}
+
+async function completePage() {
+  const current = STATE.viewerFlatPages[STATE.viewerPageIndex];
+  if (!current.user_completed) {
+    const r = await markPageComplete(current);
+    if (r && r.moduleComplete) {
+      showCompletion();
+      return;
+    }
+  }
+
+  // Check if module is fully complete
+  const allDone = STATE.viewerFlatPages.every(p => p.user_completed);
+  if (allDone) showCompletion();
+  else go('modules');
+}
+
+async function markPageComplete(page) {
+  page.user_completed = true;
+
+  // Update in chapters
+  for (const ch of STATE.viewerChapters) {
+    for (const pg of (ch.pages || [])) {
+      if (pg.id === page.id) pg.user_completed = true;
+    }
+  }
+
+  const r = await api('markPageComplete', {
+    page_id: page.id,
+    module_id: STATE.viewerModule.id,
+    chapter_id: page.chapter_id,
+    video_watched: page.user_video_watched || false
+  });
+
+  renderViewer();
+  return r;
+}
+
+function showCompletion() {
+  document.getElementById('completion_title').textContent = STATE.viewerModule.title + ' Complete!';
+  document.getElementById('completion_overlay').style.display = 'flex';
+}
+
+function closeCompletion() {
+  document.getElementById('completion_overlay').style.display = 'none';
+  go('modules');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MANUALS
+   ═══════════════════════════════════════════════════════════════════════════ */
+async function loadManuals() {
+  const r = await api('getManuals');
+  if (!r.ok) return;
+  STATE.manuals = r.manuals;
+  renderManualFilters();
+  renderManualsList();
+}
+
+function renderManualFilters() {
+  const categories = ['All', ...new Set(STATE.manuals.map(m => m.category))];
+  const el = document.getElementById('manuals_filter');
+  el.innerHTML = categories.map(c => {
+    const key = c === 'All' ? 'all' : c;
+    return `<button class="filter-btn ${STATE.manualsFilter === key ? 'active' : ''}"
+      onclick="setManualFilter('${key}')">${c}</button>`;
+  }).join('');
+}
+
+function setManualFilter(filter) {
+  STATE.manualsFilter = filter;
+  renderManualFilters();
+  renderManualsList();
+}
+
+function filterManuals() { renderManualsList(); }
+
+function renderManualsList() {
+  const search = (document.getElementById('manuals_search').value || '').toLowerCase();
+  let filtered = STATE.manuals;
+
+  if (STATE.manualsFilter !== 'all') {
+    filtered = filtered.filter(m => m.category === STATE.manualsFilter);
+  }
+  if (search) {
+    filtered = filtered.filter(m =>
+      m.title.toLowerCase().includes(search) ||
+      m.description.toLowerCase().includes(search) ||
+      m.category.toLowerCase().includes(search)
+    );
+  }
+
+  // Sort: favorites first
+  filtered.sort((a, b) => {
+    if (a.is_favorite && !b.is_favorite) return -1;
+    if (!a.is_favorite && b.is_favorite) return 1;
+    return 0;
+  });
+
+  const el = document.getElementById('manuals_list');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>No manuals found</p></div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(m => `
+    <div class="manual-item ${STATE.selectedManual === m.id ? 'active' : ''}" onclick="selectManual(${m.id})">
+      <div class="manual-icon">${m.file_type === 'pdf' ? '&#128196;' : '&#128195;'}</div>
+      <div class="manual-info">
+        <div class="manual-title">${esc(m.title)}</div>
+        <div class="manual-category">${esc(m.category)}</div>
+      </div>
+      <button class="manual-fav ${m.is_favorite ? 'favorited' : ''}" onclick="event.stopPropagation();toggleFavorite(${m.id})">
+        ${m.is_favorite ? '&#9733;' : '&#9734;'}
+      </button>
+    </div>
+  `).join('');
+}
+
+function selectManual(id) {
+  STATE.selectedManual = id;
+  const manual = STATE.manuals.find(m => m.id === id);
+  if (!manual) return;
+
+  const viewer = document.getElementById('manuals_viewer');
+  if (manual.file_type === 'pdf') {
+    viewer.innerHTML = `<iframe class="manual-frame" src="${manual.file_path}"></iframe>`;
+  } else {
+    viewer.innerHTML = `
+      <div style="padding:40px;text-align:center;color:var(--text2)">
+        <div style="font-size:48px;margin-bottom:16px">&#128196;</div>
+        <p>${esc(manual.title)}</p>
+        <a href="${manual.file_path}" download style="display:inline-block;margin-top:16px;padding:10px 24px;
+          background:var(--accent);color:#fff;border-radius:var(--radius-sm);font-size:14px">
+          Download File
+        </a>
+      </div>`;
+  }
+  renderManualsList();
+}
+
+async function toggleFavorite(id) {
+  const r = await api('toggleManualFavorite', { manual_id: id });
+  if (r.ok) {
+    const manual = STATE.manuals.find(m => m.id === id);
+    if (manual) manual.is_favorite = r.favorited;
+    renderManualsList();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN
+   ═══════════════════════════════════════════════════════════════════════════ */
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('admin_' + tab).classList.add('active');
+
+  if (tab === 'progress' || tab === 'assignments') populateModuleSelects();
+  if (tab === 'manuals') loadAdminManuals();
+}
+
+async function loadAdminData() {
+  const r = await api('admin/getModules');
+  if (!r.ok) return;
+  STATE.adminModules = r.modules;
+  renderAdminModuleList();
+  populateModuleSelects();
+
+  // Load staff
+  const sr = await api('admin/getStaff');
+  if (sr.ok) STATE.staffList = sr.staff;
+}
+
+function populateModuleSelects() {
+  ['progress_module_select', 'assign_module_select'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const val = el.value;
+    el.innerHTML = '<option value="">-- Select Module --</option>' +
+      STATE.adminModules.map(m => `<option value="${m.id}">${esc(m.title)}</option>`).join('');
+    el.value = val;
+  });
+}
+
+function renderAdminModuleList() {
+  const el = document.getElementById('admin_modules_list');
+  document.getElementById('admin_module_list_view').style.display = '';
+  document.getElementById('admin_module_editor').className = 'module-editor';
+
+  if (STATE.adminModules.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128218;</div><p>No modules yet. Create your first module!</p></div>';
+    return;
+  }
+
+  el.innerHTML = STATE.adminModules.map(m => `
+    <div class="admin-module-row">
+      <div class="admin-module-info">
+        <div class="admin-module-name">${esc(m.title)}</div>
+        <div class="admin-module-meta">
+          ${m.chapter_count || 0} chapters &middot; ${m.page_count || 0} pages &middot;
+          ${m.assigned_count || 0} assigned &middot;
+          ${m.is_published ? '<span style="color:var(--success)">Published</span>' : '<span style="color:var(--text3)">Draft</span>'}
+        </div>
+      </div>
+      <div class="admin-module-actions">
+        <div class="toggle-row" style="padding:0">
+          <label class="admin-toggle">
+            <input type="checkbox" ${m.is_published ? 'checked' : ''} onchange="togglePublish(${m.id}, this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <button class="btn-secondary" onclick="editModule(${m.id})">Edit</button>
+        <button class="btn-danger" onclick="deleteModule(${m.id})">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+// Create module
+function showCreateModuleModal() {
+  showModal(`
+    <h3>Create New Module</h3>
+    <div class="form-group">
+      <label class="form-label">Module Title</label>
+      <input class="form-input" id="new_module_title" placeholder="e.g., Beginner Pole Technique">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="new_module_desc" placeholder="Brief description of this module..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="createModule()">Create Module</button>
+    </div>
+  `);
+}
+
+async function createModule() {
+  const title = document.getElementById('new_module_title').value.trim();
+  if (!title) return toast('Enter a title', 'error');
+
+  const r = await api('admin/createModule', {
+    title,
+    description: document.getElementById('new_module_desc').value.trim()
+  });
+
+  if (r.ok) {
+    hideModal();
+    toast('Module created!', 'success');
+    loadAdminData();
+  }
+}
+
+async function togglePublish(id, published) {
+  await api('admin/updateModule', { module_id: id, is_published: published });
+  const m = STATE.adminModules.find(x => x.id === id);
+  if (m) m.is_published = published;
+  renderAdminModuleList();
+}
+
+async function deleteModule(id) {
+  if (!confirm('Delete this module and all its content? This cannot be undone.')) return;
+  const r = await api('admin/deleteModule', { module_id: id });
+  if (r.ok) { toast('Module deleted', 'success'); loadAdminData(); }
+}
+
+// ─── Module Editor ──────────────────────────────────────────────────────────
+async function editModule(moduleId) {
+  const r = await api('getModule', { module_id: moduleId });
+  if (!r.ok) return toast(r.reason, 'error');
+
+  STATE.editingModule = r.module;
+  const chapters = r.chapters;
+
+  document.getElementById('admin_module_list_view').style.display = 'none';
+  const editor = document.getElementById('admin_module_editor');
+  editor.className = 'module-editor active';
+
+  editor.innerHTML = `
+    <div class="editor-header">
+      <button class="btn-secondary" onclick="renderAdminModuleList()">&#8592; Back</button>
+      <h3>${esc(r.module.title)}</h3>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Module Title</label>
+      <input class="form-input" id="edit_module_title" value="${esc(r.module.title)}" onchange="saveModuleField()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="edit_module_desc" onchange="saveModuleField()">${esc(r.module.description || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cover Image URL</label>
+      <input class="form-input" id="edit_module_cover" value="${esc(r.module.cover_image || '')}" onchange="saveModuleField()" placeholder="https://... or upload below">
+      <input type="file" accept="image/*" style="margin-top:8px" onchange="uploadCoverImage(this)">
+    </div>
+
+    <div style="margin-top:32px">
+      <div class="admin-section-header">
+        <h3>Chapters</h3>
+        <button class="btn-primary" onclick="addChapter()">+ Add Chapter</button>
+      </div>
+      <div id="chapter_editor_list" class="chapter-editor-list">
+        ${chapters.map(ch => renderChapterEditor(ch)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderChapterEditor(ch) {
+  const pages = ch.pages || [];
+  return `
+    <div class="chapter-editor-item" data-chapter-id="${ch.id}">
+      <div class="chapter-editor-header" onclick="this.nextElementSibling.classList.toggle('expanded')">
+        <h4>${esc(ch.title)}</h4>
+        <span style="font-size:12px;color:var(--text3)">${pages.length} pages</span>
+        <button class="btn-secondary" style="margin-left:auto;margin-right:8px" onclick="event.stopPropagation();renameChapter(${ch.id},'${esc(ch.title)}')">Rename</button>
+        <button class="btn-danger" onclick="event.stopPropagation();deleteChapter(${ch.id})">Delete</button>
+      </div>
+      <div class="chapter-editor-body">
+        ${pages.map(pg => `
+          <div class="page-editor-row">
+            <span class="page-title">${esc(pg.title || 'Untitled')}</span>
+            <span class="page-type">${pg.video_url ? '&#127909; Video' : '&#128196; Text'}</span>
+            <button class="btn-secondary" onclick="editPageModal(${ch.id}, ${pg.id})">Edit</button>
+            <button class="btn-danger" onclick="deletePage(${pg.id})">&#10005;</button>
+          </div>
+        `).join('')}
+        <button class="btn-primary" style="width:100%;margin-top:8px" onclick="addPage(${ch.id})">+ Add Page</button>
+      </div>
+    </div>`;
+}
+
+async function saveModuleField() {
+  const id = STATE.editingModule.id;
+  await api('admin/updateModule', {
+    module_id: id,
+    title: document.getElementById('edit_module_title').value.trim(),
+    description: document.getElementById('edit_module_desc').value.trim(),
+    cover_image: document.getElementById('edit_module_cover').value.trim()
+  });
+}
+
+async function uploadCoverImage(input) {
+  if (!input.files[0]) return;
+  const r = await apiUpload('backgrounds', input.files[0]);
+  if (r.ok) {
+    document.getElementById('edit_module_cover').value = r.filePath;
+    saveModuleField();
+    toast('Cover image uploaded', 'success');
+  }
+}
+
+async function addChapter() {
+  const title = prompt('Chapter title:');
+  if (!title) return;
+  const r = await api('admin/createChapter', { module_id: STATE.editingModule.id, title });
+  if (r.ok) { toast('Chapter added', 'success'); editModule(STATE.editingModule.id); }
+}
+
+async function renameChapter(id, current) {
+  const title = prompt('Chapter title:', current);
+  if (!title || title === current) return;
+  await api('admin/updateChapter', { chapter_id: id, title });
+  editModule(STATE.editingModule.id);
+}
+
+async function deleteChapter(id) {
+  if (!confirm('Delete this chapter and all its pages?')) return;
+  await api('admin/deleteChapter', { chapter_id: id });
+  toast('Chapter deleted', 'success');
+  editModule(STATE.editingModule.id);
+}
+
+async function addPage(chapterId) {
+  showModal(`
+    <h3>Add Page</h3>
+    <div class="page-edit-sections">
+      <div class="form-group">
+        <label class="form-label">Page Title</label>
+        <input class="form-input" id="page_title" placeholder="Page title">
+      </div>
+      <div class="page-edit-section">
+        <h4>Content</h4>
+        <div class="editor-toolbar">
+          <button onclick="execRich('bold')"><b>B</b></button>
+          <button onclick="execRich('italic')"><i>I</i></button>
+          <button onclick="execRich('underline')"><u>U</u></button>
+          <button onclick="execRich('insertUnorderedList')">&#8226; List</button>
+          <button onclick="execRich('insertOrderedList')">1. List</button>
+          <button onclick="execRich('formatBlock','H2')">H2</button>
+          <button onclick="execRich('formatBlock','H3')">H3</button>
+        </div>
+        <div class="rich-editor" id="page_content" contenteditable="true" style="border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm)"></div>
+      </div>
+      <div class="page-edit-section">
+        <h4>Video (optional)</h4>
+        <div class="form-group">
+          <label class="form-label">Video URL (YouTube or Google Drive link)</label>
+          <input class="form-input" id="page_video" placeholder="https://youtube.com/watch?v=... or Google Drive link">
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Video must be watched to continue</span>
+          <label class="admin-toggle">
+            <input type="checkbox" id="page_video_req" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="page-edit-section">
+        <h4>Background Image (optional)</h4>
+        <input type="file" accept="image/*" id="page_bg_upload">
+        <input class="form-input" id="page_bg_url" placeholder="Or enter image URL" style="margin-top:8px">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="savePage(${chapterId})">Save Page</button>
+    </div>
+  `);
+}
+
+function execRich(cmd, val) {
+  document.execCommand(cmd, false, val || null);
+  document.getElementById('page_content').focus();
+}
+
+async function savePage(chapterId, pageId) {
+  const title = document.getElementById('page_title').value.trim();
+  const html = document.getElementById('page_content').innerHTML;
+  const videoUrl = document.getElementById('page_video').value.trim();
+  const videoReq = document.getElementById('page_video_req').checked;
+  let bgImage = document.getElementById('page_bg_url').value.trim();
+
+  // Upload bg if file chosen
+  const bgFile = document.getElementById('page_bg_upload').files[0];
+  if (bgFile) {
+    const r = await apiUpload('backgrounds', bgFile);
+    if (r.ok) bgImage = r.filePath;
+  }
+
+  const data = {
+    chapter_id: chapterId,
+    title,
+    content_type: 'rich_text',
+    content: { html },
+    video_url: videoUrl,
+    video_required: videoReq,
+    background_image: bgImage
+  };
+
+  let r;
+  if (pageId) {
+    data.page_id = pageId;
+    r = await api('admin/updatePage', data);
+  } else {
+    r = await api('admin/createPage', data);
+  }
+
+  if (r.ok) {
+    hideModal();
+    toast(pageId ? 'Page updated' : 'Page added', 'success');
+    editModule(STATE.editingModule.id);
+  }
+}
+
+async function editPageModal(chapterId, pageId) {
+  // Fetch the page data
+  const modR = await api('getModule', { module_id: STATE.editingModule.id });
+  if (!modR.ok) return;
+
+  let page = null;
+  for (const ch of modR.chapters) {
+    for (const pg of (ch.pages || [])) {
+      if (pg.id === pageId) { page = pg; break; }
+    }
+    if (page) break;
+  }
+  if (!page) return toast('Page not found', 'error');
+
+  const contentData = typeof page.content === 'string' ? JSON.parse(page.content || '{}') : (page.content || {});
+
+  showModal(`
+    <h3>Edit Page</h3>
+    <div class="page-edit-sections">
+      <div class="form-group">
+        <label class="form-label">Page Title</label>
+        <input class="form-input" id="page_title" value="${esc(page.title || '')}">
+      </div>
+      <div class="page-edit-section">
+        <h4>Content</h4>
+        <div class="editor-toolbar">
+          <button onclick="execRich('bold')"><b>B</b></button>
+          <button onclick="execRich('italic')"><i>I</i></button>
+          <button onclick="execRich('underline')"><u>U</u></button>
+          <button onclick="execRich('insertUnorderedList')">&#8226; List</button>
+          <button onclick="execRich('insertOrderedList')">1. List</button>
+          <button onclick="execRich('formatBlock','H2')">H2</button>
+          <button onclick="execRich('formatBlock','H3')">H3</button>
+        </div>
+        <div class="rich-editor" id="page_content" contenteditable="true" style="border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm)">${contentData.html || ''}</div>
+      </div>
+      <div class="page-edit-section">
+        <h4>Video (optional)</h4>
+        <div class="form-group">
+          <label class="form-label">Video URL</label>
+          <input class="form-input" id="page_video" value="${esc(page.video_url || '')}">
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Video must be watched to continue</span>
+          <label class="admin-toggle">
+            <input type="checkbox" id="page_video_req" ${page.video_required ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="page-edit-section">
+        <h4>Background Image</h4>
+        <input type="file" accept="image/*" id="page_bg_upload">
+        <input class="form-input" id="page_bg_url" value="${esc(page.background_image || '')}" placeholder="Image URL" style="margin-top:8px">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="savePage(${chapterId}, ${pageId})">Update Page</button>
+    </div>
+  `);
+}
+
+async function deletePage(pageId) {
+  if (!confirm('Delete this page?')) return;
+  await api('admin/deletePage', { page_id: pageId });
+  toast('Page deleted', 'success');
+  editModule(STATE.editingModule.id);
+}
+
+// ─── Admin: Manuals Management ──────────────────────────────────────────────
+async function loadAdminManuals() {
+  const r = await api('getManuals');
+  if (!r.ok) return;
+
+  const el = document.getElementById('admin_manuals_list');
+  if (r.manuals.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>No manuals uploaded yet</p></div>';
+    return;
+  }
+
+  el.innerHTML = r.manuals.map(m => `
+    <div class="admin-module-row">
+      <div class="admin-module-info">
+        <div class="admin-module-name">${esc(m.title)}</div>
+        <div class="admin-module-meta">${esc(m.category)} &middot; ${m.file_type.toUpperCase()}</div>
+      </div>
+      <div class="admin-module-actions">
+        <button class="btn-secondary" onclick="editManualModal(${m.id}, '${esc(m.title)}', '${esc(m.description || '')}', '${esc(m.category)}')">Edit</button>
+        <button class="btn-danger" onclick="deleteManual(${m.id})">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+async function uploadManual(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  const r = await apiUpload('manuals', file);
+  if (!r.ok) return toast('Upload failed', 'error');
+
+  // Show modal to set title and category
+  const defaultTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+
+  showModal(`
+    <h3>Manual Details</h3>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="manual_title" value="${esc(defaultTitle)}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <input class="form-input" id="manual_category" value="General" placeholder="e.g., Pole, Aerial, Flexibility">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea class="form-input" id="manual_description" placeholder="Brief description..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveManualDetails('${r.filePath}', '${ext}')">Save Manual</button>
+    </div>
+  `);
+}
+
+async function saveManualDetails(filePath, fileType) {
+  const r = await api('admin/createManual', {
+    title: document.getElementById('manual_title').value.trim(),
+    description: document.getElementById('manual_description').value.trim(),
+    category: document.getElementById('manual_category').value.trim() || 'General',
+    file_path: filePath,
+    file_type: fileType === 'pdf' ? 'pdf' : 'doc'
+  });
+
+  if (r.ok) { hideModal(); toast('Manual uploaded!', 'success'); loadAdminManuals(); }
+}
+
+function editManualModal(id, title, desc, category) {
+  showModal(`
+    <h3>Edit Manual</h3>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="edit_manual_title" value="${title}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <input class="form-input" id="edit_manual_category" value="${category}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="edit_manual_desc">${desc}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="updateManual(${id})">Save</button>
+    </div>
+  `);
+}
+
+async function updateManual(id) {
+  await api('admin/updateManual', {
+    manual_id: id,
+    title: document.getElementById('edit_manual_title').value.trim(),
+    description: document.getElementById('edit_manual_desc').value.trim(),
+    category: document.getElementById('edit_manual_category').value.trim()
+  });
+  hideModal(); toast('Manual updated', 'success'); loadAdminManuals();
+}
+
+async function deleteManual(id) {
+  if (!confirm('Delete this manual?')) return;
+  const r = await api('admin/deleteManual', { manual_id: id });
+  if (r.ok) { toast('Manual deleted', 'success'); loadAdminManuals(); }
+}
+
+// ─── Admin: Progress ────────────────────────────────────────────────────────
+async function loadProgress() {
+  const moduleId = document.getElementById('progress_module_select').value;
+  const wrap = document.getElementById('progress_table_wrap');
+  if (!moduleId) { wrap.innerHTML = ''; return; }
+
+  const r = await api('admin/getProgress', { module_id: parseInt(moduleId) });
+  if (!r.ok) return;
+
+  if (r.progress.length === 0) {
+    wrap.innerHTML = '<div class="empty-state"><p>No staff assigned to this module</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <table class="progress-table">
+      <thead>
+        <tr>
+          <th>Staff Member</th>
+          <th>Progress</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th>Completed</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${r.progress.map(p => {
+          const pct = parseInt(p.total_pages) > 0 ? Math.round((parseInt(p.completed_pages) / parseInt(p.total_pages)) * 100) : 0;
+          const isComplete = p.module_completed_at;
+          const isOverdue = p.due_date && new Date(p.due_date) < new Date() && !isComplete;
+          return `
+            <tr>
+              <td>${esc(p.user_name || p.user_email)}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="progress-bar-wrap" style="flex:1">
+                    <div class="progress-bar-fill ${isComplete ? 'complete' : ''}" style="width:${pct}%"></div>
+                  </div>
+                  <span style="font-size:12px;color:var(--text3)">${pct}%</span>
+                </div>
+              </td>
+              <td>${p.due_date ? formatDate(p.due_date) : '<span style="color:var(--text3)">Open-ended</span>'}</td>
+              <td>${isComplete ? '<span style="color:var(--success)">&#10003; Complete</span>'
+                : isOverdue ? '<span style="color:var(--danger)">Overdue</span>'
+                : '<span style="color:var(--warning)">In Progress</span>'}</td>
+              <td>${isComplete ? formatDate(p.module_completed_at) : '-'}</td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ─── Admin: Assignments ─────────────────────────────────────────────────────
+async function loadAssignments() {
+  const moduleId = document.getElementById('assign_module_select').value;
+  const wrap = document.getElementById('assignments_list');
+  if (!moduleId) { wrap.innerHTML = ''; return; }
+
+  const r = await api('admin/getAssignments', { module_id: parseInt(moduleId) });
+  if (!r.ok) return;
+
+  if (r.assignments.length === 0) {
+    wrap.innerHTML = '<div class="empty-state"><p>No staff assigned yet</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = r.assignments.map(a => `
+    <div class="admin-module-row">
+      <div class="admin-module-info">
+        <div class="admin-module-name">${esc(a.user_name || a.user_email)}</div>
+        <div class="admin-module-meta">
+          Assigned ${formatDate(a.assigned_at)}
+          ${a.due_date ? ` &middot; Due ${formatDate(a.due_date)}` : ' &middot; Open-ended'}
+        </div>
+      </div>
+      <button class="btn-danger" onclick="unassignModule(${a.module_id}, '${esc(a.user_email)}')">Remove</button>
+    </div>`).join('');
+}
+
+function showAssignModal() {
+  const moduleId = document.getElementById('assign_module_select').value;
+  if (!moduleId) return toast('Select a module first', 'error');
+
+  showModal(`
+    <h3>Assign Staff</h3>
+    <div class="form-group">
+      <label class="form-label">Staff Member</label>
+      <select class="form-input" id="assign_user">
+        <option value="">-- Select --</option>
+        ${STATE.staffList.map(s => `<option value="${s.email}">${esc(s.name || s.email)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Due Date (optional)</label>
+      <input class="form-input" id="assign_due" type="date">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="assignStaff()">Assign</button>
+    </div>
+  `);
+}
+
+async function assignStaff() {
+  const moduleId = document.getElementById('assign_module_select').value;
+  const email = document.getElementById('assign_user').value;
+  const due = document.getElementById('assign_due').value;
+  if (!email) return toast('Select a staff member', 'error');
+
+  const r = await api('admin/assignModule', {
+    module_id: parseInt(moduleId), user_email: email,
+    due_date: due || null
+  });
+  if (r.ok) { hideModal(); toast('Staff assigned!', 'success'); loadAssignments(); }
+}
+
+async function unassignModule(moduleId, email) {
+  if (!confirm('Remove this assignment?')) return;
+  await api('admin/unassignModule', { module_id: moduleId, user_email: email });
+  toast('Assignment removed', 'success');
+  loadAssignments();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function showModal(html) {
+  const overlay = document.getElementById('modal_overlay');
+  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  overlay.classList.remove('hidden');
+  overlay.onclick = e => { if (e.target === overlay) hideModal(); };
+}
+
+function hideModal() {
+  document.getElementById('modal_overlay').classList.add('hidden');
+  document.getElementById('modal_overlay').innerHTML = '';
+}
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = (type === 'success' ? '\u2713 ' : '\u2717 ') + msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Drag and drop for manual upload zone
+const uploadZone = document.getElementById('manual_upload_zone');
+if (uploadZone) {
+  ['dragenter', 'dragover'].forEach(evt => {
+    uploadZone.addEventListener(evt, e => {
+      e.preventDefault();
+      uploadZone.style.borderColor = 'var(--accent)';
+      uploadZone.style.background = 'var(--accent-bg)';
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    uploadZone.addEventListener(evt, e => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '';
+      uploadZone.style.background = '';
+    });
+  });
+  uploadZone.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const input = document.getElementById('manual_file_input');
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      uploadManual(input);
+    }
+  });
+}
+</script>
+</body>
+</html>

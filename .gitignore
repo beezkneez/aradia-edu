@@ -1,0 +1,8 @@
+node_modules/
+.env
+public/uploads/manuals/*
+public/uploads/modules/*
+public/uploads/backgrounds/*
+!public/uploads/manuals/.gitkeep
+!public/uploads/modules/.gitkeep
+!public/uploads/backgrounds/.gitkeep
