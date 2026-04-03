@@ -947,7 +947,7 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
         </div>
         <div class="viewer-chapters" id="viewer_chapters"></div>
         <div class="viewer-sidebar-footer">
-          <button class="btn-back-modules" onclick="go('modules')">&#8592; Back to Modules</button>
+          <button class="btn-back-modules" onclick="exitViewer()">&#8592; Back</button>
         </div>
       </div>
       <div class="viewer-main">
@@ -1589,9 +1589,25 @@ function showCompletion() {
   document.getElementById('completion_overlay').style.display = 'flex';
 }
 
+function exitViewer() {
+  if (STATE._previewMode) {
+    STATE._previewMode = false;
+    go('admin');
+    editModule(STATE.viewerModule.id);
+  } else {
+    go('modules');
+  }
+}
+
 function closeCompletion() {
   document.getElementById('completion_overlay').style.display = 'none';
-  go('modules');
+  if (STATE._previewMode) {
+    STATE._previewMode = false;
+    go('admin');
+    editModule(STATE.viewerModule.id);
+  } else {
+    go('modules');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1817,9 +1833,14 @@ async function editModule(moduleId) {
   editor.className = 'module-editor active';
 
   editor.innerHTML = `
-    <div class="editor-header">
+    <div class="editor-header" style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
       <button class="btn-secondary" onclick="renderAdminModuleList()">&#8592; Back</button>
-      <h3>${esc(r.module.title)}</h3>
+      <h3 style="flex:1;margin:0">${esc(r.module.title)}</h3>
+      <button onclick="previewModule(${r.module.id})" style="padding:9px 20px;border-radius:50px;background:var(--surface2);color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border)">Preview</button>
+      <button onclick="publishModule(${r.module.id}, ${!r.module.is_published})" style="padding:9px 20px;border-radius:50px;background:${r.module.is_published ? 'var(--surface2)' : '#e8465a'};color:${r.module.is_published ? 'var(--text)' : '#fff'};font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:${r.module.is_published ? '1px solid var(--border)' : 'none'}">${r.module.is_published ? 'Unpublish' : 'Publish Module'}</button>
+    </div>
+    <div id="editor_status_bar" style="padding:10px 16px;border-radius:var(--radius-sm);margin-bottom:20px;font-size:13px;font-weight:500;background:${r.module.is_published ? 'var(--success-bg)' : 'var(--warning-bg)'};color:${r.module.is_published ? 'var(--success)' : 'var(--warning)'}">
+      ${r.module.is_published ? '&#10003; Published - visible to assigned staff' : '&#9888; Draft - not yet visible to staff'}
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -1884,6 +1905,40 @@ function renderChapterEditor(ch) {
         <button class="btn-primary" style="width:100%;margin-top:10px" onclick="addPage(${ch.id})">+ Add Page</button>
       </div>
     </div>`;
+}
+
+async function previewModule(moduleId) {
+  // Load the module as if we're a learner and show the viewer
+  const r = await api('getModule', { module_id: moduleId });
+  if (!r.ok) return toast(r.reason, 'error');
+
+  STATE.viewerModule = r.module;
+  STATE.viewerChapters = r.chapters;
+
+  STATE.viewerFlatPages = [];
+  for (const ch of r.chapters) {
+    for (const pg of ch.pages) {
+      STATE.viewerFlatPages.push({ ...pg, chapter_title: ch.title, chapter_id: ch.id, user_completed: false, user_video_watched: false });
+    }
+  }
+
+  if (STATE.viewerFlatPages.length === 0) {
+    return toast('No pages to preview - add some content first', 'error');
+  }
+
+  STATE.viewerPageIndex = 0;
+  STATE._previewMode = true;
+  go('viewer');
+  renderViewer();
+}
+
+async function publishModule(moduleId, publish) {
+  await api('admin/updateModule', { module_id: moduleId, is_published: publish });
+  toast(publish ? 'Module published!' : 'Module unpublished', 'success');
+  // Reload admin data and re-open the editor
+  const sr = await api('admin/getModules');
+  if (sr.ok) STATE.adminModules = sr.modules;
+  editModule(moduleId);
 }
 
 async function importModuleFile(input) {
