@@ -584,6 +584,30 @@ app.post('/api/admin/upload/:type', upload.single('file'), async (req, res) => {
   }
 });
 
+// ─── Admin: Get PDF page count ──────────────────────────────────────────────
+app.post('/api/admin/getPdfPageCount', async (req, res) => {
+  try {
+    const user = await getAuthorizedUser(req.body.email, req.body.pin);
+    if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+
+    const filePath = path.join(__dirname, 'public', req.body.file_path);
+    if (!fs.existsSync(filePath)) return res.json({ ok: false, reason: 'File not found' });
+
+    // Read PDF and count /Type /Page occurrences (simple approach)
+    const data = fs.readFileSync(filePath);
+    const text = data.toString('latin1');
+
+    // Count page objects - look for /Type /Page (not /Pages)
+    const matches = text.match(/\/Type\s*\/Page[^s]/g);
+    const pageCount = matches ? matches.length : 1;
+
+    res.json({ ok: true, pageCount: Math.max(1, pageCount) });
+  } catch (e) {
+    console.error('PDF page count error:', e);
+    res.json({ ok: true, pageCount: 1 });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MANUALS API
 // ═══════════════════════════════════════════════════════════════════════════════

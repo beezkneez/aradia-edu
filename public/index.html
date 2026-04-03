@@ -1908,28 +1908,42 @@ function renderChapterEditor(ch) {
 }
 
 async function previewModule(moduleId) {
-  // Load the module as if we're a learner and show the viewer
-  const r = await api('getModule', { module_id: moduleId });
-  if (!r.ok) return toast(r.reason, 'error');
+  try {
+    const r = await api('getModule', { module_id: moduleId });
+    if (!r.ok) return toast(r.reason, 'error');
 
-  STATE.viewerModule = r.module;
-  STATE.viewerChapters = r.chapters;
+    STATE.viewerModule = r.module;
+    STATE.viewerChapters = r.chapters;
 
-  STATE.viewerFlatPages = [];
-  for (const ch of r.chapters) {
-    for (const pg of ch.pages) {
-      STATE.viewerFlatPages.push({ ...pg, chapter_title: ch.title, chapter_id: ch.id, user_completed: false, user_video_watched: false });
+    // Reset all progress for preview
+    STATE.viewerFlatPages = [];
+    for (const ch of r.chapters) {
+      if (!ch.pages) ch.pages = [];
+      for (const pg of ch.pages) {
+        pg.user_completed = false;
+        pg.user_video_watched = false;
+        STATE.viewerFlatPages.push({ ...pg, chapter_title: ch.title, chapter_id: ch.id, user_completed: false, user_video_watched: false });
+      }
     }
-  }
 
-  if (STATE.viewerFlatPages.length === 0) {
-    return toast('No pages to preview - add some content first', 'error');
-  }
+    if (STATE.viewerFlatPages.length === 0) {
+      return toast('No pages to preview - add chapters and pages first', 'error');
+    }
 
-  STATE.viewerPageIndex = 0;
-  STATE._previewMode = true;
-  go('viewer');
-  renderViewer();
+    STATE.viewerPageIndex = 0;
+    STATE._previewMode = true;
+
+    // Manually show the viewer page
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('page_module_viewer').classList.add('active');
+    STATE.currentPage = 'viewer';
+
+    renderViewer();
+  } catch(e) {
+    console.error('Preview error:', e);
+    toast('Preview failed - check console', 'error');
+  }
 }
 
 async function publishModule(moduleId, publish) {
@@ -1946,6 +1960,8 @@ async function importModuleFile(input) {
   const file = input.files[0];
   const ext = file.name.split('.').pop().toLowerCase();
 
+  toast('Uploading file...', 'success');
+
   // Upload the file
   const r = await apiUpload('modules', file);
   if (!r.ok) return toast('Upload failed', 'error');
@@ -1955,32 +1971,52 @@ async function importModuleFile(input) {
   const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: chapterTitle });
   if (!cr.ok) return toast('Failed to create chapter', 'error');
 
-  // Create a page with the imported file
   if (ext === 'pdf') {
-    // For PDFs, embed as viewable content
-    await api('admin/createPage', {
-      chapter_id: cr.chapter.id,
-      title: chapterTitle,
-      content_type: 'rich_text',
-      content: { html: `<iframe src="${r.filePath}" style="width:100%;height:600px;border:none;border-radius:8px"></iframe>` },
-      video_url: '',
-      video_required: false,
-      background_image: ''
-    });
+    // Get page count from server
+    const countR = await api('admin/getPdfPageCount', { file_path: r.filePath });
+    const pageCount = (countR.ok && countR.pageCount) ? countR.pageCount : 1;
+
+    if (pageCount > 1) {
+      // Create one page per PDF page
+      for (let i = 1; i <= pageCount; i++) {
+        await api('admin/createPage', {
+          chapter_id: cr.chapter.id,
+          title: `${chapterTitle} - Page ${i}`,
+          content_type: 'rich_text',
+          content: { html: `<iframe src="${r.filePath}#page=${i}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
+          video_url: '',
+          video_required: false,
+          background_image: ''
+        });
+      }
+      toast(`Imported! ${pageCount} pages created.`, 'success');
+    } else {
+      // Single page or couldn't detect count - embed whole PDF
+      await api('admin/createPage', {
+        chapter_id: cr.chapter.id,
+        title: chapterTitle,
+        content_type: 'rich_text',
+        content: { html: `<iframe src="${r.filePath}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
+        video_url: '',
+        video_required: false,
+        background_image: ''
+      });
+      toast('File imported!', 'success');
+    }
   } else {
-    // For doc files, create a download link page
+    // For doc files, create a viewable page
     await api('admin/createPage', {
       chapter_id: cr.chapter.id,
       title: chapterTitle,
       content_type: 'rich_text',
-      content: { html: `<p>This content was imported from <strong>${esc(file.name)}</strong></p><p><a href="${r.filePath}" download style="color:var(--accent)">Download original file</a></p>` },
+      content: { html: `<p>Imported from <strong>${esc(file.name)}</strong></p><p style="margin-top:16px"><a href="${r.filePath}" download style="display:inline-block;padding:10px 24px;background:#e8465a;color:#fff;border-radius:50px;font-weight:600;text-decoration:none">Download Original File</a></p>` },
       video_url: '',
       video_required: false,
       background_image: ''
     });
+    toast('File imported!', 'success');
   }
 
-  toast('File imported! Chapter and page created.', 'success');
   editModule(STATE.editingModule.id);
 }
 
