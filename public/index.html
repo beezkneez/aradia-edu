@@ -209,7 +209,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 28px; height: 64px; background: var(--header-bg);
-  backdrop-filter: blur(24px) saturate(1.8);
+  /* no blur */
   border-bottom: 1px solid var(--border);
   flex-shrink: 0; z-index: 100; position: relative;
 }
@@ -343,7 +343,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
   position: absolute; top: 14px; right: 14px; padding: 5px 12px;
   border-radius: 50px; font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.5px; z-index: 2;
-  backdrop-filter: blur(8px);
+  /* no blur */
 }
 .badge-complete { background: var(--success-bg); color: var(--success); border: 1px solid rgba(52,211,153,0.2); }
 .badge-due { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(251,191,36,0.2); }
@@ -477,7 +477,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 }
 .video-overlay {
   position: absolute; inset: 0; background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(4px);
+  /* no blur */
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 14px; flex-direction: column; gap: 10px; z-index: 10;
 }
@@ -528,7 +528,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
   display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
 .completion-card {
-  background: var(--card-bg); backdrop-filter: blur(40px);
+  background: var(--card-bg); /* no blur */
   border: 1px solid var(--border);
   border-radius: 24px; padding: 56px; text-align: center; max-width: 460px;
   box-shadow: var(--shadow-lg); animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -781,8 +781,7 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 
 /* Modal */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(8px);
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000; animation: fadeIn 0.2s ease;
 }
@@ -2296,7 +2295,10 @@ function formatDate(d) {
 
 function showModal(html) {
   const overlay = document.getElementById('modal_overlay');
-  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  const theme = document.documentElement.getAttribute('data-theme');
+  const modalBg = theme === 'dark' ? '#181723' : '#ffffff';
+  const modalColor = theme === 'dark' ? '#f0eff4' : '#1a1828';
+  overlay.innerHTML = `<div class="modal" style="background:${modalBg};color:${modalColor}">${html}</div>`;
   overlay.classList.remove('hidden');
   overlay.onclick = e => { if (e.target === overlay) hideModal(); };
 }
