@@ -438,13 +438,13 @@ app.post('/api/admin/updatePage', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
 
-  const { page_id, title, content_type, content, background_image, video_url, video_required, sort_order } = req.body;
+  const { page_id, chapter_id, title, content_type, content, background_image, video_url, video_required, sort_order } = req.body;
   await pool.query(
-    `UPDATE edu_pages SET title=COALESCE($1,title), content_type=COALESCE($2,content_type),
-     content=COALESCE($3,content), background_image=COALESCE($4,background_image),
-     video_url=COALESCE($5,video_url), video_required=COALESCE($6,video_required),
-     sort_order=COALESCE($7,sort_order) WHERE id=$8`,
-    [title, content_type, content ? JSON.stringify(content) : null, background_image, video_url, video_required, sort_order, page_id]
+    `UPDATE edu_pages SET chapter_id=COALESCE($1,chapter_id), title=COALESCE($2,title), content_type=COALESCE($3,content_type),
+     content=COALESCE($4,content), background_image=COALESCE($5,background_image),
+     video_url=COALESCE($6,video_url), video_required=COALESCE($7,video_required),
+     sort_order=COALESCE($8,sort_order) WHERE id=$9`,
+    [chapter_id, title, content_type, content ? JSON.stringify(content) : null, background_image, video_url, video_required, sort_order, page_id]
   );
   res.json({ ok: true });
 });

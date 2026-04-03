@@ -1866,11 +1866,14 @@ async function editModule(moduleId) {
 
     <div style="padding:16px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:24px">
       <label class="form-label" style="margin-bottom:8px">Import Content from File</label>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Upload a .pdf or .doc file to automatically create pages from it</p>
-      <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:50px;background:#e8465a;background-image:linear-gradient(135deg,#e8465a,#ff8c6b);color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">
-        Upload .pdf / .doc
-        <input type="file" accept=".pdf,.doc,.docx" style="display:none" onchange="importModuleFile(this)">
-      </label>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Upload a .pdf or .doc - each PDF page becomes a separate slide. You can then edit each page, add videos, and move pages between chapters.</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:50px;background:#e8465a;background-image:linear-gradient(135deg,#e8465a,#ff8c6b);color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">
+          Upload .pdf / .doc
+          <input type="file" accept=".pdf,.doc,.docx" style="display:none" onchange="importModuleFile(this)">
+        </label>
+        <span style="font-size:12px;color:var(--text3)">Pages import into a new chapter. Use Edit to move pages between chapters.</span>
+      </div>
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:16px">
@@ -2070,7 +2073,21 @@ async function addPage(chapterId) {
         <input class="form-input" id="page_title" placeholder="Page title">
       </div>
       <div class="page-edit-section">
-        <h4>Content</h4>
+        <h4>Video (optional)</h4>
+        <div class="form-group">
+          <label class="form-label">YouTube or Google Drive Link</label>
+          <input class="form-input" id="page_video" placeholder="https://youtube.com/watch?v=... or Google Drive link">
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Video must be watched to continue</span>
+          <label class="admin-toggle">
+            <input type="checkbox" id="page_video_req" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="page-edit-section">
+        <h4>Page Content</h4>
         <div class="editor-toolbar">
           <button onclick="execRich('bold')"><b>B</b></button>
           <button onclick="execRich('italic')"><i>I</i></button>
@@ -2083,20 +2100,6 @@ async function addPage(chapterId) {
         <div class="rich-editor" id="page_content" contenteditable="true" style="border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm)"></div>
       </div>
       <div class="page-edit-section">
-        <h4>Video (optional)</h4>
-        <div class="form-group">
-          <label class="form-label">Video URL (YouTube or Google Drive link)</label>
-          <input class="form-input" id="page_video" placeholder="https://youtube.com/watch?v=... or Google Drive link">
-        </div>
-        <div class="toggle-row">
-          <span class="toggle-label">Video must be watched to continue</span>
-          <label class="admin-toggle">
-            <input type="checkbox" id="page_video_req" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-      <div class="page-edit-section">
         <h4>Background Image (optional)</h4>
         <input type="file" accept="image/*" id="page_bg_upload">
         <input class="form-input" id="page_bg_url" placeholder="Or enter image URL" style="margin-top:8px">
@@ -2104,7 +2107,7 @@ async function addPage(chapterId) {
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" onclick="savePage(${chapterId})">Save Page</button>
+      <button onclick="savePage(${chapterId})" style="padding:10px 24px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Save Page</button>
     </div>
   `);
 }
@@ -2155,15 +2158,40 @@ async function editPageModal(chapterId, pageId) {
 
   const contentData = typeof page.content === 'string' ? JSON.parse(page.content || '{}') : (page.content || {});
 
+  // Build chapter options for move dropdown
+  const chapterOptions = modR.chapters.map(ch =>
+    `<option value="${ch.id}" ${ch.id === chapterId ? 'selected' : ''}>${esc(ch.title)}</option>`
+  ).join('');
+
   showModal(`
     <h3>Edit Page</h3>
     <div class="page-edit-sections">
-      <div class="form-group">
-        <label class="form-label">Page Title</label>
-        <input class="form-input" id="page_title" value="${esc(page.title || '')}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Page Title</label>
+          <input class="form-input" id="page_title" value="${esc(page.title || '')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chapter</label>
+          <select class="form-input" id="page_chapter_select">${chapterOptions}</select>
+        </div>
       </div>
       <div class="page-edit-section">
-        <h4>Content</h4>
+        <h4>Video</h4>
+        <div class="form-group">
+          <label class="form-label">YouTube or Google Drive Link</label>
+          <input class="form-input" id="page_video" value="${esc(page.video_url || '')}" placeholder="https://youtube.com/watch?v=...">
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Video must be watched to continue</span>
+          <label class="admin-toggle">
+            <input type="checkbox" id="page_video_req" ${page.video_required ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="page-edit-section">
+        <h4>Page Content</h4>
         <div class="editor-toolbar">
           <button onclick="execRich('bold')"><b>B</b></button>
           <button onclick="execRich('italic')"><i>I</i></button>
@@ -2176,20 +2204,6 @@ async function editPageModal(chapterId, pageId) {
         <div class="rich-editor" id="page_content" contenteditable="true" style="border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm)">${contentData.html || ''}</div>
       </div>
       <div class="page-edit-section">
-        <h4>Video (optional)</h4>
-        <div class="form-group">
-          <label class="form-label">Video URL</label>
-          <input class="form-input" id="page_video" value="${esc(page.video_url || '')}">
-        </div>
-        <div class="toggle-row">
-          <span class="toggle-label">Video must be watched to continue</span>
-          <label class="admin-toggle">
-            <input type="checkbox" id="page_video_req" ${page.video_required ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-      <div class="page-edit-section">
         <h4>Background Image</h4>
         <input type="file" accept="image/*" id="page_bg_upload">
         <input class="form-input" id="page_bg_url" value="${esc(page.background_image || '')}" placeholder="Image URL" style="margin-top:8px">
@@ -2197,7 +2211,7 @@ async function editPageModal(chapterId, pageId) {
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" onclick="savePage(${chapterId}, ${pageId})">Update Page</button>
+      <button onclick="savePage(document.getElementById('page_chapter_select').value, ${pageId})" style="padding:10px 24px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Update Page</button>
     </div>
   `);
 }
