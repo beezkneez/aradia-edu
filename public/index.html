@@ -1822,28 +1822,42 @@ async function editModule(moduleId) {
       <h3>${esc(r.module.title)}</h3>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Module Title</label>
-      <input class="form-input" id="edit_module_title" value="${esc(r.module.title)}" onchange="saveModuleField()">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-group">
+        <label class="form-label">Module Title</label>
+        <input class="form-input" id="edit_module_title" value="${esc(r.module.title)}" onchange="saveModuleField()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cover Image</label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="edit_module_cover" value="${esc(r.module.cover_image || '')}" onchange="saveModuleField()" placeholder="URL or upload" style="flex:1">
+          <label style="padding:10px 16px;border-radius:50px;background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;border:1px solid var(--border);white-space:nowrap;display:flex;align-items:center">
+            Upload
+            <input type="file" accept="image/*" style="display:none" onchange="uploadCoverImage(this)">
+          </label>
+        </div>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
-      <textarea class="form-input" id="edit_module_desc" onchange="saveModuleField()">${esc(r.module.description || '')}</textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Cover Image URL</label>
-      <input class="form-input" id="edit_module_cover" value="${esc(r.module.cover_image || '')}" onchange="saveModuleField()" placeholder="https://... or upload below">
-      <input type="file" accept="image/*" style="margin-top:8px" onchange="uploadCoverImage(this)">
+      <textarea class="form-input" id="edit_module_desc" onchange="saveModuleField()" style="min-height:60px">${esc(r.module.description || '')}</textarea>
     </div>
 
-    <div style="margin-top:36px">
-      <div class="admin-section-header">
-        <h3>Chapters</h3>
-        <button class="btn-primary" onclick="addChapter()">+ Add Chapter</button>
-      </div>
-      <div id="chapter_editor_list" class="chapter-editor-list">
-        ${chapters.map(ch => renderChapterEditor(ch)).join('')}
-      </div>
+    <div style="padding:16px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:24px">
+      <label class="form-label" style="margin-bottom:8px">Import Content from File</label>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Upload a .pdf or .doc file to automatically create pages from it</p>
+      <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:50px;background:#e8465a;background-image:linear-gradient(135deg,#e8465a,#ff8c6b);color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">
+        Upload .pdf / .doc
+        <input type="file" accept=".pdf,.doc,.docx" style="display:none" onchange="importModuleFile(this)">
+      </label>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:16px">
+      <h3 style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:600;margin:0">Chapters</h3>
+      <button onclick="addChapter()" style="padding:10px 22px;border-radius:50px;background:#e8465a;background-image:linear-gradient(135deg,#e8465a,#ff8c6b);color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">+ Add Chapter</button>
+    </div>
+    <div id="chapter_editor_list" class="chapter-editor-list">
+      ${chapters.length === 0 ? '<div class="empty-state" style="padding:32px"><p>No chapters yet. Add a chapter or import a file above.</p></div>' : chapters.map(ch => renderChapterEditor(ch)).join('')}
     </div>
   `;
 }
@@ -1870,6 +1884,49 @@ function renderChapterEditor(ch) {
         <button class="btn-primary" style="width:100%;margin-top:10px" onclick="addPage(${ch.id})">+ Add Page</button>
       </div>
     </div>`;
+}
+
+async function importModuleFile(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  // Upload the file
+  const r = await apiUpload('modules', file);
+  if (!r.ok) return toast('Upload failed', 'error');
+
+  // Create a chapter named after the file
+  const chapterTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+  const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: chapterTitle });
+  if (!cr.ok) return toast('Failed to create chapter', 'error');
+
+  // Create a page with the imported file
+  if (ext === 'pdf') {
+    // For PDFs, embed as viewable content
+    await api('admin/createPage', {
+      chapter_id: cr.chapter.id,
+      title: chapterTitle,
+      content_type: 'rich_text',
+      content: { html: `<iframe src="${r.filePath}" style="width:100%;height:600px;border:none;border-radius:8px"></iframe>` },
+      video_url: '',
+      video_required: false,
+      background_image: ''
+    });
+  } else {
+    // For doc files, create a download link page
+    await api('admin/createPage', {
+      chapter_id: cr.chapter.id,
+      title: chapterTitle,
+      content_type: 'rich_text',
+      content: { html: `<p>This content was imported from <strong>${esc(file.name)}</strong></p><p><a href="${r.filePath}" download style="color:var(--accent)">Download original file</a></p>` },
+      video_url: '',
+      video_required: false,
+      background_image: ''
+    });
+  }
+
+  toast('File imported! Chapter and page created.', 'success');
+  editModule(STATE.editingModule.id);
 }
 
 async function saveModuleField() {
