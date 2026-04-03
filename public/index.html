@@ -1965,61 +1965,147 @@ async function importModuleFile(input) {
 
   toast('Uploading file...', 'success');
 
-  // Upload the file
   const r = await apiUpload('modules', file);
   if (!r.ok) return toast('Upload failed', 'error');
 
-  // Create a chapter named after the file
-  const chapterTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-  const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: chapterTitle });
-  if (!cr.ok) return toast('Failed to create chapter', 'error');
+  const baseTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
 
   if (ext === 'pdf') {
-    // Get page count from server
     const countR = await api('admin/getPdfPageCount', { file_path: r.filePath });
     const pageCount = (countR.ok && countR.pageCount) ? countR.pageCount : 1;
 
     if (pageCount > 1) {
-      // Create one page per PDF page
-      for (let i = 1; i <= pageCount; i++) {
+      // Show the split-into-chapters modal
+      STATE._importData = { filePath: r.filePath, pageCount, baseTitle };
+      showImportSplitModal(pageCount, baseTitle);
+    } else {
+      // Single page - just create one chapter with one page
+      const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: baseTitle });
+      if (cr.ok) {
         await api('admin/createPage', {
-          chapter_id: cr.chapter.id,
-          title: `${chapterTitle} - Page ${i}`,
+          chapter_id: cr.chapter.id, title: baseTitle,
           content_type: 'rich_text',
-          content: { html: `<iframe src="${r.filePath}#page=${i}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
-          video_url: '',
-          video_required: false,
-          background_image: ''
+          content: { html: `<iframe src="${r.filePath}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
+          video_url: '', video_required: false, background_image: ''
         });
       }
-      toast(`Imported! ${pageCount} pages created.`, 'success');
-    } else {
-      // Single page or couldn't detect count - embed whole PDF
-      await api('admin/createPage', {
-        chapter_id: cr.chapter.id,
-        title: chapterTitle,
-        content_type: 'rich_text',
-        content: { html: `<iframe src="${r.filePath}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
-        video_url: '',
-        video_required: false,
-        background_image: ''
-      });
       toast('File imported!', 'success');
+      editModule(STATE.editingModule.id);
     }
   } else {
-    // For doc files, create a viewable page
-    await api('admin/createPage', {
-      chapter_id: cr.chapter.id,
-      title: chapterTitle,
-      content_type: 'rich_text',
-      content: { html: `<p>Imported from <strong>${esc(file.name)}</strong></p><p style="margin-top:16px"><a href="${r.filePath}" download style="display:inline-block;padding:10px 24px;background:#e8465a;color:#fff;border-radius:50px;font-weight:600;text-decoration:none">Download Original File</a></p>` },
-      video_url: '',
-      video_required: false,
-      background_image: ''
-    });
+    const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: baseTitle });
+    if (cr.ok) {
+      await api('admin/createPage', {
+        chapter_id: cr.chapter.id, title: baseTitle,
+        content_type: 'rich_text',
+        content: { html: `<p>Imported from <strong>${esc(file.name)}</strong></p><p style="margin-top:16px"><a href="${r.filePath}" download style="display:inline-block;padding:10px 24px;background:#e8465a;color:#fff;border-radius:50px;font-weight:600;text-decoration:none">Download Original File</a></p>` },
+        video_url: '', video_required: false, background_image: ''
+      });
+    }
     toast('File imported!', 'success');
+    editModule(STATE.editingModule.id);
+  }
+}
+
+function showImportSplitModal(pageCount, baseTitle) {
+  // Default: one chapter with all pages
+  const defaultChapters = [{ title: baseTitle, from: 1, to: pageCount }];
+  STATE._importChapters = defaultChapters;
+
+  const renderChapterRows = () => {
+    return STATE._importChapters.map((ch, i) => `
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <div style="flex:1">
+          <input class="form-input" value="${esc(ch.title)}" placeholder="Chapter title" onchange="STATE._importChapters[${i}].title=this.value" style="margin-bottom:6px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;color:var(--text2);white-space:nowrap">Pages</label>
+            <input type="number" class="form-input" value="${ch.from}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].from=parseInt(this.value)">
+            <span style="color:var(--text3)">to</span>
+            <input type="number" class="form-input" value="${ch.to}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].to=parseInt(this.value)">
+            <span style="font-size:12px;color:var(--text3)">(${ch.to - ch.from + 1} pages)</span>
+          </div>
+        </div>
+        ${STATE._importChapters.length > 1 ? `<button onclick="removeImportChapter(${i})" style="padding:6px 12px;border-radius:50px;background:var(--danger-bg);color:var(--danger);font-size:12px;cursor:pointer;border:none;white-space:nowrap">Remove</button>` : ''}
+      </div>
+    `).join('');
+  };
+
+  showModal(`
+    <h3>Split PDF into Chapters</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">This PDF has <strong>${pageCount} pages</strong>. Define how to split them into chapters.</p>
+    <div id="import_chapter_rows">${renderChapterRows()}</div>
+    <button onclick="addImportChapter(${pageCount})" style="padding:8px 18px;border-radius:50px;background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;border:1px solid var(--border);margin-bottom:20px">+ Add Chapter</button>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button onclick="executeImportSplit()" style="padding:10px 24px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Import</button>
+    </div>
+  `);
+}
+
+function addImportChapter(pageCount) {
+  const last = STATE._importChapters[STATE._importChapters.length - 1];
+  const nextFrom = last.to + 1;
+  if (nextFrom > pageCount) return toast('All pages are already assigned', 'error');
+  STATE._importChapters.push({ title: `Chapter ${STATE._importChapters.length + 1}`, from: nextFrom, to: pageCount });
+  refreshImportModal(pageCount);
+}
+
+function removeImportChapter(idx) {
+  const pageCount = STATE._importData.pageCount;
+  STATE._importChapters.splice(idx, 1);
+  refreshImportModal(pageCount);
+}
+
+function refreshImportModal(pageCount) {
+  const rows = document.getElementById('import_chapter_rows');
+  if (!rows) return;
+  rows.innerHTML = STATE._importChapters.map((ch, i) => `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <div style="flex:1">
+        <input class="form-input" value="${esc(ch.title)}" placeholder="Chapter title" onchange="STATE._importChapters[${i}].title=this.value" style="margin-bottom:6px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:12px;color:var(--text2);white-space:nowrap">Pages</label>
+          <input type="number" class="form-input" value="${ch.from}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].from=parseInt(this.value)">
+          <span style="color:var(--text3)">to</span>
+          <input type="number" class="form-input" value="${ch.to}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].to=parseInt(this.value)">
+          <span style="font-size:12px;color:var(--text3)">(${ch.to - ch.from + 1} pages)</span>
+        </div>
+      </div>
+      ${STATE._importChapters.length > 1 ? `<button onclick="removeImportChapter(${i})" style="padding:6px 12px;border-radius:50px;background:var(--danger-bg);color:var(--danger);font-size:12px;cursor:pointer;border:none;white-space:nowrap">Remove</button>` : ''}
+    </div>
+  `).join('');
+}
+
+async function executeImportSplit() {
+  const { filePath, pageCount, baseTitle } = STATE._importData;
+  const chapters = STATE._importChapters;
+
+  // Validate no gaps or overlaps
+  for (const ch of chapters) {
+    if (!ch.title.trim()) return toast('All chapters need a title', 'error');
+    if (ch.from < 1 || ch.to > pageCount || ch.from > ch.to) return toast('Invalid page range', 'error');
   }
 
+  toast('Creating chapters and pages...', 'success');
+
+  for (const ch of chapters) {
+    const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: ch.title.trim() });
+    if (!cr.ok) { toast('Failed to create chapter: ' + ch.title, 'error'); continue; }
+
+    for (let p = ch.from; p <= ch.to; p++) {
+      await api('admin/createPage', {
+        chapter_id: cr.chapter.id,
+        title: `Page ${p}`,
+        content_type: 'rich_text',
+        content: { html: `<iframe src="${filePath}#page=${p}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
+        video_url: '', video_required: false, background_image: ''
+      });
+    }
+  }
+
+  const totalPages = chapters.reduce((sum, ch) => sum + (ch.to - ch.from + 1), 0);
+  hideModal();
+  toast(`Imported! ${chapters.length} chapters, ${totalPages} pages created.`, 'success');
   editModule(STATE.editingModule.id);
 }
 
