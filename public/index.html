@@ -1971,27 +1971,17 @@ async function importModuleFile(input) {
   const baseTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
 
   if (ext === 'pdf') {
-    const countR = await api('admin/getPdfPageCount', { file_path: r.filePath });
-    const pageCount = (countR.ok && countR.pageCount) ? countR.pageCount : 1;
+    // Always show the split modal for PDFs
+    let pageCount = 1;
+    try {
+      const countR = await api('admin/getPdfPageCount', { file_path: r.filePath });
+      if (countR.ok && countR.pageCount > 0) pageCount = countR.pageCount;
+    } catch(e) { console.error('Page count error:', e); }
 
-    if (pageCount > 1) {
-      // Show the split-into-chapters modal
-      STATE._importData = { filePath: r.filePath, pageCount, baseTitle };
-      showImportSplitModal(pageCount, baseTitle);
-    } else {
-      // Single page - just create one chapter with one page
-      const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: baseTitle });
-      if (cr.ok) {
-        await api('admin/createPage', {
-          chapter_id: cr.chapter.id, title: baseTitle,
-          content_type: 'rich_text',
-          content: { html: `<iframe src="${r.filePath}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
-          video_url: '', video_required: false, background_image: ''
-        });
-      }
-      toast('File imported!', 'success');
-      editModule(STATE.editingModule.id);
-    }
+    // Show split modal - user enters page count manually if detection failed
+    STATE._importData = { filePath: r.filePath, pageCount, baseTitle };
+    showImportSplitModal(pageCount, baseTitle);
+    return; // Don't reload editor yet - modal handles it
   } else {
     const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: baseTitle });
     if (cr.ok) {
@@ -2008,72 +1998,72 @@ async function importModuleFile(input) {
 }
 
 function showImportSplitModal(pageCount, baseTitle) {
-  // Default: one chapter with all pages
-  const defaultChapters = [{ title: baseTitle, from: 1, to: pageCount }];
-  STATE._importChapters = defaultChapters;
-
-  const renderChapterRows = () => {
-    return STATE._importChapters.map((ch, i) => `
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">
-        <div style="flex:1">
-          <input class="form-input" value="${esc(ch.title)}" placeholder="Chapter title" onchange="STATE._importChapters[${i}].title=this.value" style="margin-bottom:6px">
-          <div style="display:flex;gap:8px;align-items:center">
-            <label style="font-size:12px;color:var(--text2);white-space:nowrap">Pages</label>
-            <input type="number" class="form-input" value="${ch.from}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].from=parseInt(this.value)">
-            <span style="color:var(--text3)">to</span>
-            <input type="number" class="form-input" value="${ch.to}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].to=parseInt(this.value)">
-            <span style="font-size:12px;color:var(--text3)">(${ch.to - ch.from + 1} pages)</span>
-          </div>
-        </div>
-        ${STATE._importChapters.length > 1 ? `<button onclick="removeImportChapter(${i})" style="padding:6px 12px;border-radius:50px;background:var(--danger-bg);color:var(--danger);font-size:12px;cursor:pointer;border:none;white-space:nowrap">Remove</button>` : ''}
-      </div>
-    `).join('');
-  };
+  STATE._importChapters = [{ title: 'Chapter 1', from: 1, to: pageCount }];
 
   showModal(`
     <h3>Split PDF into Chapters</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">This PDF has <strong>${pageCount} pages</strong>. Define how to split them into chapters.</p>
-    <div id="import_chapter_rows">${renderChapterRows()}</div>
-    <button onclick="addImportChapter(${pageCount})" style="padding:8px 18px;border-radius:50px;background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;border:1px solid var(--border);margin-bottom:20px">+ Add Chapter</button>
+    <div style="padding:12px 16px;background:var(--accent-bg);border-radius:var(--radius-sm);margin-bottom:16px;font-size:13px;color:var(--accent);font-weight:500">
+      Detected <strong>${pageCount} pages</strong> in this PDF
+    </div>
+    <div class="form-group">
+      <label class="form-label">Total Pages in PDF</label>
+      <input type="number" class="form-input" id="import_page_count" value="${pageCount}" min="1" style="width:120px" onchange="updateImportPageCount(parseInt(this.value))">
+      <span style="font-size:12px;color:var(--text3);margin-left:8px">Edit if detection was wrong</span>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px"><strong>Define your chapters below.</strong> Each chapter gets a name and a page range. Each PDF page becomes a slide that you can then edit individually.</p>
+    <div id="import_chapter_rows"></div>
+    <button onclick="addImportChapter()" style="padding:8px 18px;border-radius:50px;background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;border:1px solid var(--border);margin-bottom:20px;width:100%;text-align:center">+ Add Another Chapter</button>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button onclick="executeImportSplit()" style="padding:10px 24px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Import</button>
+      <button onclick="executeImportSplit()" style="padding:10px 24px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Build Module</button>
     </div>
   `);
+  renderImportChapterRows();
 }
 
-function addImportChapter(pageCount) {
+function updateImportPageCount(count) {
+  STATE._importData.pageCount = count;
+  // Update last chapter's "to" if it exceeds
   const last = STATE._importChapters[STATE._importChapters.length - 1];
-  const nextFrom = last.to + 1;
-  if (nextFrom > pageCount) return toast('All pages are already assigned', 'error');
-  STATE._importChapters.push({ title: `Chapter ${STATE._importChapters.length + 1}`, from: nextFrom, to: pageCount });
-  refreshImportModal(pageCount);
+  if (last) last.to = count;
+  renderImportChapterRows();
+}
+
+function renderImportChapterRows() {
+  const rows = document.getElementById('import_chapter_rows');
+  if (!rows) return;
+  const pc = STATE._importData.pageCount;
+  rows.innerHTML = STATE._importChapters.map((ch, i) => `
+    <div style="margin-bottom:10px;padding:14px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700;color:var(--accent);min-width:20px">${i+1}.</span>
+        <input class="form-input" value="${esc(ch.title)}" placeholder="Chapter name (e.g. Overview, Values, etc.)" onchange="STATE._importChapters[${i}].title=this.value" style="flex:1">
+        ${STATE._importChapters.length > 1 ? `<button onclick="removeImportChapter(${i})" style="padding:6px 14px;border-radius:50px;background:var(--danger-bg);color:var(--danger);font-size:12px;cursor:pointer;border:none">Remove</button>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;padding-left:30px">
+        <label style="font-size:12px;color:var(--text2);font-weight:600">Pages</label>
+        <input type="number" class="form-input" value="${ch.from}" min="1" max="${pc}" style="width:70px;text-align:center" onchange="STATE._importChapters[${i}].from=parseInt(this.value);renderImportChapterRows()">
+        <span style="color:var(--text3);font-size:13px">to</span>
+        <input type="number" class="form-input" value="${ch.to}" min="1" max="${pc}" style="width:70px;text-align:center" onchange="STATE._importChapters[${i}].to=parseInt(this.value);renderImportChapterRows()">
+        <span style="font-size:12px;color:var(--text3);font-weight:500">(${Math.max(0, ch.to - ch.from + 1)} slides)</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addImportChapter() {
+  const pc = STATE._importData.pageCount;
+  const last = STATE._importChapters[STATE._importChapters.length - 1];
+  const nextFrom = last ? last.to + 1 : 1;
+  if (nextFrom > pc) return toast('All pages are assigned - adjust ranges above or increase page count', 'error');
+  STATE._importChapters.push({ title: `Chapter ${STATE._importChapters.length + 1}`, from: nextFrom, to: pc });
+  renderImportChapterRows();
 }
 
 function removeImportChapter(idx) {
-  const pageCount = STATE._importData.pageCount;
   STATE._importChapters.splice(idx, 1);
-  refreshImportModal(pageCount);
-}
-
-function refreshImportModal(pageCount) {
-  const rows = document.getElementById('import_chapter_rows');
-  if (!rows) return;
-  rows.innerHTML = STATE._importChapters.map((ch, i) => `
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">
-      <div style="flex:1">
-        <input class="form-input" value="${esc(ch.title)}" placeholder="Chapter title" onchange="STATE._importChapters[${i}].title=this.value" style="margin-bottom:6px">
-        <div style="display:flex;gap:8px;align-items:center">
-          <label style="font-size:12px;color:var(--text2);white-space:nowrap">Pages</label>
-          <input type="number" class="form-input" value="${ch.from}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].from=parseInt(this.value)">
-          <span style="color:var(--text3)">to</span>
-          <input type="number" class="form-input" value="${ch.to}" min="1" max="${pageCount}" style="width:70px" onchange="STATE._importChapters[${i}].to=parseInt(this.value)">
-          <span style="font-size:12px;color:var(--text3)">(${ch.to - ch.from + 1} pages)</span>
-        </div>
-      </div>
-      ${STATE._importChapters.length > 1 ? `<button onclick="removeImportChapter(${i})" style="padding:6px 12px;border-radius:50px;background:var(--danger-bg);color:var(--danger);font-size:12px;cursor:pointer;border:none;white-space:nowrap">Remove</button>` : ''}
-    </div>
-  `).join('');
+  renderImportChapterRows();
 }
 
 async function executeImportSplit() {
