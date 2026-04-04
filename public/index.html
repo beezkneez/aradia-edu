@@ -2816,12 +2816,18 @@ async function openSlideEditor(moduleId) {
   el.style.background = isDark ? '#0c0b10' : '#f8f7fc';
   el.querySelector('.se-toolbar').style.background = isDark ? '#181723' : '#ffffff';
   el.querySelector('.se-sidebar').style.background = isDark ? '#0f0e15' : '#ffffff';
-  el.querySelector('.se-canvas-area').style.background = isDark ? '#121118' : '#eeedf5';
-  el.querySelector('.se-canvas').style.background = isDark ? '#181723' : '#ffffff';
+  const canvasArea = el.querySelector('.se-canvas-area');
+  canvasArea.style.background = isDark ? '#121118' : '#eeedf5';
+  canvasArea.style.position = 'relative';
+  canvasArea.style.zIndex = '1';
+  el.querySelector('.se-canvas').style.background = isDark ? '#1e1d2a' : '#ffffff';
+  el.querySelector('.se-canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.3)';
   el.querySelector('.se-props').style.background = isDark ? '#0f0e15' : '#ffffff';
   el.querySelector('.se-footer').style.background = isDark ? '#181723' : '#ffffff';
 
   el.classList.add('active');
+  // Hide app shell behind the editor
+  document.getElementById('app_shell').style.visibility = 'hidden';
 
   seRenderSidebar();
   if (SE.flatPages.length > 0) seLoadSlide(0);
@@ -2829,6 +2835,7 @@ async function openSlideEditor(moduleId) {
 
 function closeSlideEditor() {
   document.getElementById('slide_editor').classList.remove('active');
+  document.getElementById('app_shell').style.visibility = 'visible';
   editModule(SE.moduleId);
 }
 
