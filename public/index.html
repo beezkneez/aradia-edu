@@ -851,13 +851,7 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 /* ═══════════════════════════════════════════════════════════════════════════
    SLIDE EDITOR (Google Slides-style)
    ═══════════════════════════════════════════════════════════════════════════ */
-.slide-editor-wrap {
-  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 9000; flex-direction: column;
-}
-[data-theme="dark"] .slide-editor-wrap { background: #0c0b10; }
-[data-theme="light"] .slide-editor-wrap { background: #f8f7fc; }
-.slide-editor-wrap.active { display: flex; }
+/* Slide editor is a .page inside app-body, no overlay needed */
 
 .se-toolbar {
   display: flex; align-items: center; gap: 4px; padding: 8px 16px;
@@ -1172,100 +1166,99 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
         </div>
       </div>
     </div>
-  </div>
-</div>
+    <!-- Slide Editor (as a page within app body) -->
+    <div id="page_slide_editor" class="page" style="flex-direction:column">
+      <div class="se-toolbar" id="se_toolbar">
+        <div class="se-toolbar-group">
+          <button class="se-btn" onclick="closeSlideEditor()" title="Back to module">&#8592; Back</button>
+        </div>
+        <span class="se-toolbar-title" id="se_module_title"></span>
+        <div class="se-toolbar-group">
+          <button class="se-btn" onclick="seExec('bold')" title="Bold"><b>B</b></button>
+          <button class="se-btn" onclick="seExec('italic')" title="Italic"><i>I</i></button>
+          <button class="se-btn" onclick="seExec('underline')" title="Underline"><u>U</u></button>
+        </div>
+        <div class="se-toolbar-group">
+          <button class="se-btn" onclick="seExec('formatBlock','H2')">H2</button>
+          <button class="se-btn" onclick="seExec('formatBlock','H3')">H3</button>
+          <button class="se-btn" onclick="seExec('insertUnorderedList')">&#8226; List</button>
+          <button class="se-btn" onclick="seExec('insertOrderedList')">1.</button>
+        </div>
+        <div class="se-toolbar-group">
+          <button class="se-btn" onclick="seAddSlide()">+ Slide</button>
+          <button class="se-btn" onclick="seDeleteSlide()" style="color:var(--danger)">&#10005; Delete</button>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="se-btn" onclick="sePreview()">Preview</button>
+          <button onclick="sePublishToggle()" id="se_publish_btn" style="padding:6px 16px;border-radius:50px;background:#e8465a;color:#fff;font-size:12px;font-weight:600;cursor:pointer;border:none">Publish</button>
+        </div>
+      </div>
+      <div class="se-body" id="se_body">
+        <div class="se-sidebar" id="se_sidebar_el">
+          <div class="se-sidebar-head">
+            <span>Slides</span>
+            <button class="se-btn" onclick="seAddChapter()" style="font-size:11px;padding:3px 8px">+ Chapter</button>
+          </div>
+          <div class="se-slides-list" id="se_slides_list"></div>
+        </div>
+        <div class="se-canvas-area" id="se_canvas_area">
+          <div class="se-canvas" id="se_canvas">
+            <div class="se-canvas-bg" id="se_canvas_bg"></div>
+            <input class="se-slide-title" id="se_slide_title" placeholder="Slide title..." onchange="seSaveCurrent()">
+            <div class="se-video-bar" id="se_video_bar" onclick="seEditVideo()">
+              <span>&#127909;</span>
+              <span id="se_video_label">Click to add video (YouTube / Google Drive)</span>
+            </div>
+            <div class="se-content" id="se_content" contenteditable="true" oninput="seDebounceSave()"></div>
+          </div>
+        </div>
+        <div class="se-props" id="se_props_el">
+          <div class="se-props-section">
+            <div class="se-props-title">Video</div>
+            <div class="se-props-row">
+              <input class="se-props-input" id="se_video_url" placeholder="YouTube or GDrive URL" onchange="seSaveCurrent()">
+            </div>
+            <div class="toggle-row" style="padding:4px 0">
+              <span style="font-size:12px;color:var(--text2)">Must watch</span>
+              <label class="admin-toggle" style="transform:scale(0.85)">
+                <input type="checkbox" id="se_video_req" onchange="seSaveCurrent()">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="se-props-section">
+            <div class="se-props-title">Background</div>
+            <div class="se-props-row">
+              <input class="se-props-input" id="se_bg_url" placeholder="Image URL" onchange="seSaveCurrent()">
+            </div>
+            <div class="se-props-row">
+              <label style="display:block;padding:6px 10px;border-radius:var(--radius-xs);background:var(--input-bg);border:1px solid var(--border);font-size:11px;color:var(--text2);cursor:pointer;text-align:center">
+                Upload Image
+                <input type="file" accept="image/*" style="display:none" onchange="seUploadBg(this)">
+              </label>
+            </div>
+          </div>
+          <div class="se-props-section">
+            <div class="se-props-title">Chapter</div>
+            <div class="se-props-row">
+              <select class="se-props-input" id="se_chapter_select" onchange="seMoveToChapter(this.value)"></select>
+            </div>
+          </div>
+          <div class="se-props-section">
+            <div class="se-props-title">Slide Order</div>
+            <div style="display:flex;gap:4px">
+              <button class="se-btn" onclick="seMoveSlide('up')" style="flex:1;justify-content:center;background:var(--input-bg);border:1px solid var(--border)">&#9650; Up</button>
+              <button class="se-btn" onclick="seMoveSlide('down')" style="flex:1;justify-content:center;background:var(--input-bg);border:1px solid var(--border)">&#9660; Down</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="se-footer" id="se_footer_el">
+        <span id="se_footer_info">Slide 1 of 1</span>
+        <span>Auto-saved</span>
+      </div>
+    </div>
 
-<!-- Overlays -->
-<!-- Slide Editor (fullscreen overlay) -->
-<div id="slide_editor" class="slide-editor-wrap">
-  <div class="se-toolbar">
-    <div class="se-toolbar-group">
-      <button class="se-btn" onclick="closeSlideEditor()" title="Back to module">&#8592; Back</button>
-    </div>
-    <span class="se-toolbar-title" id="se_module_title"></span>
-    <div class="se-toolbar-group">
-      <button class="se-btn" onclick="seExec('bold')" title="Bold"><b>B</b></button>
-      <button class="se-btn" onclick="seExec('italic')" title="Italic"><i>I</i></button>
-      <button class="se-btn" onclick="seExec('underline')" title="Underline"><u>U</u></button>
-    </div>
-    <div class="se-toolbar-group">
-      <button class="se-btn" onclick="seExec('formatBlock','H2')">H2</button>
-      <button class="se-btn" onclick="seExec('formatBlock','H3')">H3</button>
-      <button class="se-btn" onclick="seExec('insertUnorderedList')">&#8226; List</button>
-      <button class="se-btn" onclick="seExec('insertOrderedList')">1.</button>
-    </div>
-    <div class="se-toolbar-group">
-      <button class="se-btn" onclick="seAddSlide()">+ Slide</button>
-      <button class="se-btn" onclick="seDeleteSlide()" style="color:var(--danger)">&#10005; Delete</button>
-    </div>
-    <div style="margin-left:auto;display:flex;gap:8px">
-      <button class="se-btn" onclick="sePreview()">Preview</button>
-      <button onclick="sePublishToggle()" id="se_publish_btn" style="padding:6px 16px;border-radius:50px;background:#e8465a;color:#fff;font-size:12px;font-weight:600;cursor:pointer;border:none">Publish</button>
-    </div>
-  </div>
-  <div class="se-body">
-    <div class="se-sidebar">
-      <div class="se-sidebar-head">
-        <span>Slides</span>
-        <button class="se-btn" onclick="seAddChapter()" style="font-size:11px;padding:3px 8px">+ Chapter</button>
-      </div>
-      <div class="se-slides-list" id="se_slides_list"></div>
-    </div>
-    <div class="se-canvas-area">
-      <div class="se-canvas" id="se_canvas">
-        <div class="se-canvas-bg" id="se_canvas_bg"></div>
-        <input class="se-slide-title" id="se_slide_title" placeholder="Slide title..." onchange="seSaveCurrent()">
-        <div class="se-video-bar" id="se_video_bar" onclick="seEditVideo()">
-          <span>&#127909;</span>
-          <span id="se_video_label">Click to add video (YouTube / Google Drive)</span>
-        </div>
-        <div class="se-content" id="se_content" contenteditable="true" oninput="seDebounceSave()"></div>
-      </div>
-    </div>
-    <div class="se-props">
-      <div class="se-props-section">
-        <div class="se-props-title">Video</div>
-        <div class="se-props-row">
-          <input class="se-props-input" id="se_video_url" placeholder="YouTube or GDrive URL" onchange="seSaveCurrent()">
-        </div>
-        <div class="toggle-row" style="padding:4px 0">
-          <span style="font-size:12px;color:var(--text2)">Must watch</span>
-          <label class="admin-toggle" style="transform:scale(0.85)">
-            <input type="checkbox" id="se_video_req" onchange="seSaveCurrent()">
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-      <div class="se-props-section">
-        <div class="se-props-title">Background</div>
-        <div class="se-props-row">
-          <input class="se-props-input" id="se_bg_url" placeholder="Image URL" onchange="seSaveCurrent()">
-        </div>
-        <div class="se-props-row">
-          <label style="display:block;padding:6px 10px;border-radius:var(--radius-xs);background:var(--input-bg);border:1px solid var(--border);font-size:11px;color:var(--text2);cursor:pointer;text-align:center">
-            Upload Image
-            <input type="file" accept="image/*" style="display:none" onchange="seUploadBg(this)">
-          </label>
-        </div>
-      </div>
-      <div class="se-props-section">
-        <div class="se-props-title">Chapter</div>
-        <div class="se-props-row">
-          <select class="se-props-input" id="se_chapter_select" onchange="seMoveToChapter(this.value)"></select>
-        </div>
-      </div>
-      <div class="se-props-section">
-        <div class="se-props-title">Slide Order</div>
-        <div style="display:flex;gap:4px">
-          <button class="se-btn" onclick="seMoveSlide('up')" style="flex:1;justify-content:center;background:var(--input-bg);border:1px solid var(--border)">&#9650; Up</button>
-          <button class="se-btn" onclick="seMoveSlide('down')" style="flex:1;justify-content:center;background:var(--input-bg);border:1px solid var(--border)">&#9660; Down</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="se-footer">
-    <span id="se_footer_info">Slide 1 of 1</span>
-    <span>Auto-saved</span>
   </div>
 </div>
 
@@ -1397,7 +1390,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function enterApp() {
-  if (SE._open) return; // Don't show app shell while slide editor is open
   document.getElementById('page_login').style.display = 'none';
   document.getElementById('app_shell').style.display = 'flex';
 
@@ -2811,47 +2803,40 @@ async function openSlideEditor(moduleId) {
 
     SE.currentIdx = 0;
 
-    // Hide EVERYTHING behind the editor
-    document.getElementById('app_shell').style.display = 'none';
-    document.getElementById('page_login').style.display = 'none';
+    // Use normal page system - hide header, show slide editor page
+    document.querySelector('.app-header').style.display = 'none';
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('page_slide_editor').classList.add('active');
+    STATE.currentPage = 'slide_editor';
 
-    const el = document.getElementById('slide_editor');
-    // Force inline styles - no CSS class dependency
-    el.setAttribute('style', 'display:flex !important;flex-direction:column !important;position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;z-index:99999 !important;width:100vw !important;height:100vh !important;');
-
+    // Apply theme colors inline
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    el.style.background = isDark ? '#0c0b10' : '#f8f7fc';
-    el.querySelector('.se-toolbar').style.background = isDark ? '#181723' : '#ffffff';
-    el.querySelector('.se-sidebar').style.background = isDark ? '#0f0e15' : '#ffffff';
-    el.querySelector('.se-canvas-area').style.background = isDark ? '#121118' : '#eeedf5';
-    el.querySelector('.se-canvas').style.background = isDark ? '#1e1d2a' : '#ffffff';
-    el.querySelector('.se-canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.3)';
-    el.querySelector('.se-props').style.background = isDark ? '#0f0e15' : '#ffffff';
-    el.querySelector('.se-footer').style.background = isDark ? '#181723' : '#ffffff';
+    document.getElementById('se_toolbar').style.background = isDark ? '#181723' : '#ffffff';
+    document.getElementById('se_sidebar_el').style.background = isDark ? '#0f0e15' : '#ffffff';
+    document.getElementById('se_canvas_area').style.background = isDark ? '#121118' : '#eeedf5';
+    document.getElementById('se_canvas').style.background = isDark ? '#1e1d2a' : '#ffffff';
+    document.getElementById('se_canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.3)';
+    document.getElementById('se_props_el').style.background = isDark ? '#0f0e15' : '#ffffff';
+    document.getElementById('se_footer_el').style.background = isDark ? '#181723' : '#ffffff';
 
     document.getElementById('se_module_title').textContent = r.module.title;
     document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
 
     seRenderSidebar();
-    if (SE.flatPages.length > 0) {
-      seLoadSlide(0);
-    }
+    if (SE.flatPages.length > 0) seLoadSlide(0);
 
     SE._loading = false;
-    SE._open = true;
     console.log('Slide editor opened:', SE.flatPages.length, 'slides');
   } catch(e) {
     console.error('openSlideEditor error:', e);
     toast('Failed to open editor', 'error');
-    document.getElementById('app_shell').style.display = 'flex';
-    SE._open = false;
+    document.querySelector('.app-header').style.display = '';
   }
 }
 
 function closeSlideEditor() {
-  SE._open = false;
-  document.getElementById('slide_editor').style.display = 'none';
-  document.getElementById('app_shell').style.display = 'flex';
+  document.querySelector('.app-header').style.display = '';
   go('admin');
   loadAdminData();
 }
