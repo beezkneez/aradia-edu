@@ -2792,51 +2792,62 @@ async function unassignModule(moduleId, email) {
 const SE = { moduleId: null, chapters: [], flatPages: [], currentIdx: 0, saveTimer: null };
 
 async function openSlideEditor(moduleId) {
-  const r = await api('getModule', { module_id: moduleId });
-  if (!r.ok) return toast(r.reason, 'error');
+  try {
+    const r = await api('getModule', { module_id: moduleId });
+    if (!r.ok) return toast(r.reason, 'error');
 
-  SE.moduleId = moduleId;
-  SE.module = r.module;
-  SE.chapters = r.chapters;
+    SE.moduleId = moduleId;
+    SE.module = r.module;
+    SE.chapters = r.chapters;
+    SE._loading = true; // prevent auto-save during load
 
-  SE.flatPages = [];
-  for (const ch of r.chapters) {
-    for (const pg of (ch.pages || [])) {
-      SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
+    SE.flatPages = [];
+    for (const ch of r.chapters) {
+      for (const pg of (ch.pages || [])) {
+        SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
+      }
     }
+
+    SE.currentIdx = 0;
+
+    // Hide app shell FIRST
+    document.getElementById('app_shell').style.display = 'none';
+
+    const el = document.getElementById('slide_editor');
+    el.style.cssText = 'display:flex;flex-direction:column;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;';
+
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    el.style.background = isDark ? '#0c0b10' : '#f8f7fc';
+    el.querySelector('.se-toolbar').style.background = isDark ? '#181723' : '#ffffff';
+    el.querySelector('.se-sidebar').style.background = isDark ? '#0f0e15' : '#ffffff';
+    el.querySelector('.se-canvas-area').style.background = isDark ? '#121118' : '#eeedf5';
+    el.querySelector('.se-canvas').style.background = isDark ? '#1e1d2a' : '#ffffff';
+    el.querySelector('.se-canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.3)';
+    el.querySelector('.se-props').style.background = isDark ? '#0f0e15' : '#ffffff';
+    el.querySelector('.se-footer').style.background = isDark ? '#181723' : '#ffffff';
+
+    document.getElementById('se_module_title').textContent = r.module.title;
+    document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
+
+    seRenderSidebar();
+    if (SE.flatPages.length > 0) {
+      seLoadSlide(0);
+    }
+
+    SE._loading = false;
+    console.log('Slide editor opened:', SE.flatPages.length, 'slides');
+  } catch(e) {
+    console.error('openSlideEditor error:', e);
+    toast('Failed to open editor', 'error');
+    document.getElementById('app_shell').style.display = 'flex';
   }
-
-  SE.currentIdx = 0;
-  document.getElementById('se_module_title').textContent = r.module.title;
-  document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
-
-  // Apply solid backgrounds via inline styles based on theme
-  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-  const el = document.getElementById('slide_editor');
-  el.style.background = isDark ? '#0c0b10' : '#f8f7fc';
-  el.querySelector('.se-toolbar').style.background = isDark ? '#181723' : '#ffffff';
-  el.querySelector('.se-sidebar').style.background = isDark ? '#0f0e15' : '#ffffff';
-  const canvasArea = el.querySelector('.se-canvas-area');
-  canvasArea.style.background = isDark ? '#121118' : '#eeedf5';
-  canvasArea.style.position = 'relative';
-  canvasArea.style.zIndex = '1';
-  el.querySelector('.se-canvas').style.background = isDark ? '#1e1d2a' : '#ffffff';
-  el.querySelector('.se-canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.3)';
-  el.querySelector('.se-props').style.background = isDark ? '#0f0e15' : '#ffffff';
-  el.querySelector('.se-footer').style.background = isDark ? '#181723' : '#ffffff';
-
-  el.classList.add('active');
-  // Hide app shell behind the editor
-  document.getElementById('app_shell').style.visibility = 'hidden';
-
-  seRenderSidebar();
-  if (SE.flatPages.length > 0) seLoadSlide(0);
 }
 
 function closeSlideEditor() {
-  document.getElementById('slide_editor').classList.remove('active');
-  document.getElementById('app_shell').style.visibility = 'visible';
-  editModule(SE.moduleId);
+  document.getElementById('slide_editor').style.display = 'none';
+  document.getElementById('app_shell').style.display = 'flex';
+  go('admin');
+  loadAdminData();
 }
 
 function seRenderSidebar() {
@@ -2875,10 +2886,13 @@ function seRenderSidebar() {
 }
 
 function seLoadSlide(idx) {
+  try {
   if (idx < 0 || idx >= SE.flatPages.length) return;
   SE.currentIdx = idx;
   const pg = SE.flatPages[idx];
-  const contentData = typeof pg.content === 'string' ? JSON.parse(pg.content || '{}') : (pg.content || {});
+  let contentData = {};
+  try { contentData = typeof pg.content === 'string' ? JSON.parse(pg.content || '{}') : (pg.content || {}); }
+  catch(e) { contentData = { html: String(pg.content || '') }; }
 
   document.getElementById('se_slide_title').value = pg.title || '';
   document.getElementById('se_content').innerHTML = contentData.html || '';
@@ -2908,6 +2922,7 @@ function seLoadSlide(idx) {
   }
 
   seRenderSidebar();
+  } catch(e) { console.error('seLoadSlide error:', e); }
 }
 
 function seEditVideo() {
@@ -2915,6 +2930,7 @@ function seEditVideo() {
 }
 
 function seDebounceSave() {
+  if (SE._loading) return;
   if (SE.saveTimer) clearTimeout(SE.saveTimer);
   SE.saveTimer = setTimeout(() => seSaveCurrent(), 800);
 }
