@@ -1397,6 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function enterApp() {
+  if (SE._open) return; // Don't show app shell while slide editor is open
   document.getElementById('page_login').style.display = 'none';
   document.getElementById('app_shell').style.display = 'flex';
 
@@ -2810,11 +2811,13 @@ async function openSlideEditor(moduleId) {
 
     SE.currentIdx = 0;
 
-    // Hide app shell FIRST
+    // Hide EVERYTHING behind the editor
     document.getElementById('app_shell').style.display = 'none';
+    document.getElementById('page_login').style.display = 'none';
 
     const el = document.getElementById('slide_editor');
-    el.style.cssText = 'display:flex;flex-direction:column;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;';
+    // Force inline styles - no CSS class dependency
+    el.setAttribute('style', 'display:flex !important;flex-direction:column !important;position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;z-index:99999 !important;width:100vw !important;height:100vh !important;');
 
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     el.style.background = isDark ? '#0c0b10' : '#f8f7fc';
@@ -2835,15 +2838,18 @@ async function openSlideEditor(moduleId) {
     }
 
     SE._loading = false;
+    SE._open = true;
     console.log('Slide editor opened:', SE.flatPages.length, 'slides');
   } catch(e) {
     console.error('openSlideEditor error:', e);
     toast('Failed to open editor', 'error');
     document.getElementById('app_shell').style.display = 'flex';
+    SE._open = false;
   }
 }
 
 function closeSlideEditor() {
+  SE._open = false;
   document.getElementById('slide_editor').style.display = 'none';
   document.getElementById('app_shell').style.display = 'flex';
   go('admin');
