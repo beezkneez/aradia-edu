@@ -1418,6 +1418,14 @@ function enterApp() {
    NAVIGATION
    ═══════════════════════════════════════════════════════════════════════════ */
 function go(page) {
+  // Don't navigate away from slide editor unless explicitly intended
+  if (STATE.currentPage === 'slide_editor' && page !== 'admin' && page !== 'viewer') return;
+
+  // Restore header if leaving slide editor
+  if (STATE.currentPage === 'slide_editor' && page !== 'slide_editor') {
+    document.querySelector('.app-header').style.display = '';
+  }
+
   STATE.currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
@@ -1986,7 +1994,7 @@ function renderAdminModuleList() {
             <span class="slider"></span>
           </label>
         </div>
-        <button onclick="openSlideEditor(${m.id})" style="padding:6px 14px;border-radius:50px;background:var(--accent-bg);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--accent-bg2)">Edit Slides</button>
+        <button onclick="event.stopPropagation();openSlideEditor(${m.id})" style="padding:6px 14px;border-radius:50px;background:var(--accent-bg);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--accent-bg2)">Edit Slides</button>
         <button class="btn-secondary" onclick="editModule(${m.id})">Settings</button>
         <button class="btn-danger" onclick="deleteModule(${m.id})">Delete</button>
       </div>
