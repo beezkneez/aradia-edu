@@ -2799,7 +2799,6 @@ async function openSlideEditor(moduleId) {
   SE.module = r.module;
   SE.chapters = r.chapters;
 
-  // Flatten all pages
   SE.flatPages = [];
   for (const ch of r.chapters) {
     for (const pg of (ch.pages || [])) {
@@ -2810,10 +2809,22 @@ async function openSlideEditor(moduleId) {
   SE.currentIdx = 0;
   document.getElementById('se_module_title').textContent = r.module.title;
   document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
-  document.getElementById('slide_editor').classList.add('active');
+
+  // Apply solid backgrounds via inline styles based on theme
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const el = document.getElementById('slide_editor');
+  el.style.background = isDark ? '#0c0b10' : '#f8f7fc';
+  el.querySelector('.se-toolbar').style.background = isDark ? '#181723' : '#ffffff';
+  el.querySelector('.se-sidebar').style.background = isDark ? '#0f0e15' : '#ffffff';
+  el.querySelector('.se-canvas-area').style.background = isDark ? '#121118' : '#eeedf5';
+  el.querySelector('.se-canvas').style.background = isDark ? '#181723' : '#ffffff';
+  el.querySelector('.se-props').style.background = isDark ? '#0f0e15' : '#ffffff';
+  el.querySelector('.se-footer').style.background = isDark ? '#181723' : '#ffffff';
+
+  el.classList.add('active');
 
   seRenderSidebar();
-  seLoadSlide(0);
+  if (SE.flatPages.length > 0) seLoadSlide(0);
 }
 
 function closeSlideEditor() {
