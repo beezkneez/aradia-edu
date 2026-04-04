@@ -1826,6 +1826,7 @@ async function editModule(moduleId) {
   if (!r.ok) return toast(r.reason, 'error');
 
   STATE.editingModule = r.module;
+  STATE.editingChapters = r.chapters;
   const chapters = r.chapters;
 
   document.getElementById('admin_module_list_view').style.display = 'none';
@@ -1888,6 +1889,9 @@ async function editModule(moduleId) {
 
 function renderChapterEditor(ch) {
   const pages = ch.pages || [];
+  const allChapters = STATE.editingChapters || [];
+  const otherChapters = allChapters.filter(c => c.id !== ch.id);
+
   return `
     <div class="chapter-editor-item" data-chapter-id="${ch.id}">
       <div class="chapter-editor-header" onclick="this.nextElementSibling.classList.toggle('expanded')">
@@ -1897,15 +1901,27 @@ function renderChapterEditor(ch) {
         <button class="btn-danger" onclick="event.stopPropagation();deleteChapter(${ch.id})">Delete</button>
       </div>
       <div class="chapter-editor-body">
-        ${pages.map(pg => `
-          <div class="page-editor-row">
-            <span class="page-title">${esc(pg.title || 'Untitled')}</span>
+        ${pages.map((pg, idx) => `
+          <div class="page-editor-row" style="position:relative">
+            <div style="display:flex;flex-direction:column;gap:2px;margin-right:4px">
+              ${idx > 0 ? `<button onclick="movePageOrder(${pg.id}, ${ch.id}, 'up')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 4px;line-height:1" title="Move up">&#9650;</button>` : '<span style="width:16px"></span>'}
+              ${idx < pages.length - 1 ? `<button onclick="movePageOrder(${pg.id}, ${ch.id}, 'down')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 4px;line-height:1" title="Move down">&#9660;</button>` : ''}
+            </div>
+            <span class="page-title" style="flex:1">${esc(pg.title || 'Untitled')}</span>
             <span class="page-type">${pg.video_url ? '&#127909; Video' : '&#128196; Text'}</span>
+            ${otherChapters.length > 0 ? `
+              <select onchange="movePageToChapter(${pg.id}, this.value)" style="padding:4px 8px;border-radius:50px;background:var(--surface2);color:var(--text2);font-size:11px;border:1px solid var(--border);cursor:pointer;max-width:120px">
+                <option value="">Move to...</option>
+                ${otherChapters.map(oc => `<option value="${oc.id}">${esc(oc.title)}</option>`).join('')}
+              </select>
+            ` : ''}
             <button class="btn-secondary" onclick="editPageModal(${ch.id}, ${pg.id})">Edit</button>
             <button class="btn-danger" onclick="deletePage(${pg.id})">&#10005;</button>
           </div>
         `).join('')}
-        <button class="btn-primary" style="width:100%;margin-top:10px" onclick="addPage(${ch.id})">+ Add Page</button>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="addPage(${ch.id})" style="flex:1;padding:8px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none">+ Add Page</button>
+        </div>
       </div>
     </div>`;
 }
@@ -2096,6 +2112,33 @@ async function executeImportSplit() {
   const totalPages = chapters.reduce((sum, ch) => sum + (ch.to - ch.from + 1), 0);
   hideModal();
   toast(`Imported! ${chapters.length} chapters, ${totalPages} pages created.`, 'success');
+  editModule(STATE.editingModule.id);
+}
+
+async function movePageToChapter(pageId, newChapterId) {
+  if (!newChapterId) return;
+  await api('admin/updatePage', { page_id: pageId, chapter_id: parseInt(newChapterId) });
+  toast('Page moved', 'success');
+  editModule(STATE.editingModule.id);
+}
+
+async function movePageOrder(pageId, chapterId, direction) {
+  // Find the chapter and its pages
+  const ch = (STATE.editingChapters || []).find(c => c.id === chapterId);
+  if (!ch || !ch.pages) return;
+
+  const idx = ch.pages.findIndex(p => p.id === pageId);
+  if (idx < 0) return;
+
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= ch.pages.length) return;
+
+  // Swap sort orders
+  const order = ch.pages.map((p, i) => ({ id: p.id, sort_order: i }));
+  order[idx].sort_order = swapIdx;
+  order[swapIdx].sort_order = idx;
+
+  await api('admin/reorderPages', { order });
   editModule(STATE.editingModule.id);
 }
 
