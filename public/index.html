@@ -849,6 +849,121 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 .editor-toolbar button:hover { background: var(--bg3); color: var(--text); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   SLIDE EDITOR (Google Slides-style)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.slide-editor-wrap {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: var(--bg); flex-direction: column;
+}
+.slide-editor-wrap.active { display: flex; }
+
+.se-toolbar {
+  display: flex; align-items: center; gap: 4px; padding: 8px 16px;
+  background: var(--surface-solid); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.se-toolbar-group { display: flex; gap: 2px; padding: 0 6px; border-right: 1px solid var(--border); }
+.se-toolbar-group:last-child { border-right: none; }
+.se-btn {
+  padding: 6px 10px; border-radius: var(--radius-xs); background: none;
+  color: var(--text2); font-size: 13px; transition: all 0.15s ease;
+  display: flex; align-items: center; gap: 4px; white-space: nowrap;
+}
+.se-btn:hover { background: var(--surface2); color: var(--text); }
+.se-toolbar-title {
+  flex: 1; font-family: var(--font-display); font-size: 15px;
+  font-weight: 600; margin: 0 12px; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+.se-body { display: flex; flex: 1; overflow: hidden; }
+
+/* Slide thumbnails */
+.se-sidebar {
+  width: 200px; min-width: 200px; background: var(--sidebar-bg);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+}
+.se-sidebar-head {
+  padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.se-sidebar-head span { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+.se-slides-list { flex: 1; overflow-y: auto; padding: 8px; }
+.se-ch-label { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 6px 3px; }
+.se-thumb {
+  width: 100%; aspect-ratio: 16/10; background: var(--surface-solid);
+  border: 2px solid transparent; border-radius: 6px;
+  margin-bottom: 5px; cursor: pointer; overflow: hidden;
+  position: relative; transition: all 0.15s ease;
+}
+.se-thumb:hover { border-color: var(--border-hover); }
+.se-thumb.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.se-thumb-num { position: absolute; top: 3px; left: 5px; font-size: 8px; font-weight: 700; color: var(--text3); background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+.se-thumb-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 2px 5px; font-size: 8px; color: var(--text2); background: linear-gradient(transparent, rgba(0,0,0,0.5)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-thumb-vid { position: absolute; top: 3px; right: 5px; font-size: 9px; }
+
+/* Canvas */
+.se-canvas-area {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; background: var(--bg); overflow: auto; padding: 20px;
+}
+.se-canvas {
+  width: 100%; max-width: 880px; aspect-ratio: 16/10;
+  background: var(--surface-solid); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+  position: relative; overflow: hidden; display: flex; flex-direction: column;
+}
+.se-canvas-bg {
+  position: absolute; inset: 0; background-size: cover; background-position: center;
+  opacity: 0.15; pointer-events: none;
+}
+.se-slide-title {
+  font-family: var(--font-display); font-size: 24px; font-weight: 700;
+  background: none; border: none; color: var(--text); width: 100%;
+  padding: 24px 28px 4px; outline: none; position: relative; z-index: 1;
+}
+.se-slide-title::placeholder { color: var(--text3); }
+.se-slide-title:focus { background: var(--accent-bg); border-radius: var(--radius-xs); }
+
+.se-video-bar {
+  margin: 6px 28px; padding: 10px 14px; border-radius: var(--radius-xs);
+  border: 1.5px dashed var(--border); display: flex; align-items: center;
+  gap: 10px; cursor: pointer; transition: all 0.15s ease; position: relative; z-index: 1;
+  font-size: 12px; color: var(--text3);
+}
+.se-video-bar:hover { border-color: var(--accent); background: var(--accent-bg); }
+.se-video-bar.has-video { border-style: solid; border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+
+.se-content {
+  flex: 1; padding: 8px 28px 24px; outline: none; overflow-y: auto;
+  font-size: 14px; line-height: 1.8; color: var(--text2); position: relative; z-index: 1;
+  min-height: 60px;
+}
+.se-content:focus { background: rgba(255,255,255,0.02); border-radius: var(--radius-xs); }
+.se-content:empty::before { content: 'Click here to add text content...'; color: var(--text3); font-style: italic; }
+
+/* Right panel */
+.se-props {
+  width: 240px; min-width: 240px; background: var(--sidebar-bg);
+  border-left: 1px solid var(--border); overflow-y: auto; padding: 14px;
+}
+.se-props-section { margin-bottom: 16px; }
+.se-props-title { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+.se-props-row { margin-bottom: 8px; }
+.se-props-input {
+  width: 100%; padding: 7px 10px; border-radius: var(--radius-xs);
+  background: var(--input-bg); border: 1px solid var(--border);
+  color: var(--text); font-size: 12px;
+}
+.se-props-input:focus { border-color: var(--accent); }
+
+.se-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 16px; background: var(--surface-solid);
+  border-top: 1px solid var(--border); flex-shrink: 0; font-size: 11px; color: var(--text3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -1048,6 +1163,99 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 </div>
 
 <!-- Overlays -->
+<!-- Slide Editor (fullscreen overlay) -->
+<div id="slide_editor" class="slide-editor-wrap">
+  <div class="se-toolbar">
+    <div class="se-toolbar-group">
+      <button class="se-btn" onclick="closeSlideEditor()" title="Back to module">&#8592; Back</button>
+    </div>
+    <span class="se-toolbar-title" id="se_module_title"></span>
+    <div class="se-toolbar-group">
+      <button class="se-btn" onclick="seExec('bold')" title="Bold"><b>B</b></button>
+      <button class="se-btn" onclick="seExec('italic')" title="Italic"><i>I</i></button>
+      <button class="se-btn" onclick="seExec('underline')" title="Underline"><u>U</u></button>
+    </div>
+    <div class="se-toolbar-group">
+      <button class="se-btn" onclick="seExec('formatBlock','H2')">H2</button>
+      <button class="se-btn" onclick="seExec('formatBlock','H3')">H3</button>
+      <button class="se-btn" onclick="seExec('insertUnorderedList')">&#8226; List</button>
+      <button class="se-btn" onclick="seExec('insertOrderedList')">1.</button>
+    </div>
+    <div class="se-toolbar-group">
+      <button class="se-btn" onclick="seAddSlide()">+ Slide</button>
+      <button class="se-btn" onclick="seDeleteSlide()" style="color:var(--danger)">&#10005; Delete</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="se-btn" onclick="sePreview()">Preview</button>
+      <button onclick="sePublishToggle()" id="se_publish_btn" style="padding:6px 16px;border-radius:50px;background:#e8465a;color:#fff;font-size:12px;font-weight:600;cursor:pointer;border:none">Publish</button>
+    </div>
+  </div>
+  <div class="se-body">
+    <div class="se-sidebar">
+      <div class="se-sidebar-head">
+        <span>Slides</span>
+        <button class="se-btn" onclick="seAddChapter()" style="font-size:11px;padding:3px 8px">+ Chapter</button>
+      </div>
+      <div class="se-slides-list" id="se_slides_list"></div>
+    </div>
+    <div class="se-canvas-area">
+      <div class="se-canvas" id="se_canvas">
+        <div class="se-canvas-bg" id="se_canvas_bg"></div>
+        <input class="se-slide-title" id="se_slide_title" placeholder="Slide title..." onchange="seSaveCurrent()">
+        <div class="se-video-bar" id="se_video_bar" onclick="seEditVideo()">
+          <span>&#127909;</span>
+          <span id="se_video_label">Click to add video (YouTube / Google Drive)</span>
+        </div>
+        <div class="se-content" id="se_content" contenteditable="true" oninput="seDebounceSave()"></div>
+      </div>
+    </div>
+    <div class="se-props">
+      <div class="se-props-section">
+        <div class="se-props-title">Video</div>
+        <div class="se-props-row">
+          <input class="se-props-input" id="se_video_url" placeholder="YouTube or GDrive URL" onchange="seSaveCurrent()">
+        </div>
+        <div class="toggle-row" style="padding:4px 0">
+          <span style="font-size:12px;color:var(--text2)">Must watch</span>
+          <label class="admin-toggle" style="transform:scale(0.85)">
+            <input type="checkbox" id="se_video_req" onchange="seSaveCurrent()">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="se-props-section">
+        <div class="se-props-title">Background</div>
+        <div class="se-props-row">
+          <input class="se-props-input" id="se_bg_url" placeholder="Image URL" onchange="seSaveCurrent()">
+        </div>
+        <div class="se-props-row">
+          <label style="display:block;padding:6px 10px;border-radius:var(--radius-xs);background:var(--input-bg);border:1px solid var(--border);font-size:11px;color:var(--text2);cursor:pointer;text-align:center">
+            Upload Image
+            <input type="file" accept="image/*" style="display:none" onchange="seUploadBg(this)">
+          </label>
+        </div>
+      </div>
+      <div class="se-props-section">
+        <div class="se-props-title">Chapter</div>
+        <div class="se-props-row">
+          <select class="se-props-input" id="se_chapter_select" onchange="seMoveToChapter(this.value)"></select>
+        </div>
+      </div>
+      <div class="se-props-section">
+        <div class="se-props-title">Slide Order</div>
+        <div style="display:flex;gap:4px">
+          <button class="se-btn" onclick="seMoveSlide('up')" style="flex:1;justify-content:center;background:var(--input-bg);border:1px solid var(--border)">&#9650; Up</button>
+          <button class="se-btn" onclick="seMoveSlide('down')" style="flex:1;justify-content:center;background:var(--input-bg);border:1px solid var(--border)">&#9660; Down</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="se-footer">
+    <span id="se_footer_info">Slide 1 of 1</span>
+    <span>Auto-saved</span>
+  </div>
+</div>
+
 <div id="modal_overlay" class="modal-overlay hidden"></div>
 <div id="toast" class="toast"></div>
 <div id="completion_overlay" class="completion-overlay" style="display:none">
@@ -1772,7 +1980,8 @@ function renderAdminModuleList() {
             <span class="slider"></span>
           </label>
         </div>
-        <button class="btn-secondary" onclick="editModule(${m.id})">Edit</button>
+        <button onclick="openSlideEditor(${m.id})" style="padding:6px 14px;border-radius:50px;background:var(--accent-bg);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--accent-bg2)">Edit Slides</button>
+        <button class="btn-secondary" onclick="editModule(${m.id})">Settings</button>
         <button class="btn-danger" onclick="deleteModule(${m.id})">Delete</button>
       </div>
     </div>`).join('');
@@ -1837,6 +2046,7 @@ async function editModule(moduleId) {
     <div class="editor-header" style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
       <button class="btn-secondary" onclick="renderAdminModuleList()">&#8592; Back</button>
       <h3 style="flex:1;margin:0">${esc(r.module.title)}</h3>
+      <button onclick="openSlideEditor(${r.module.id})" style="padding:9px 20px;border-radius:50px;background:var(--accent-bg);color:var(--accent);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--accent-bg2)">Slide Editor</button>
       <button onclick="previewModule(${r.module.id})" style="padding:9px 20px;border-radius:50px;background:var(--surface2);color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border)">Preview</button>
       <button onclick="publishModule(${r.module.id}, ${!r.module.is_published})" style="padding:9px 20px;border-radius:50px;background:${r.module.is_published ? 'var(--surface2)' : '#e8465a'};color:${r.module.is_published ? 'var(--text)' : '#fff'};font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:${r.module.is_published ? '1px solid var(--border)' : 'none'}">${r.module.is_published ? 'Unpublish' : 'Publish Module'}</button>
     </div>
@@ -2563,6 +2773,324 @@ async function unassignModule(moduleId, email) {
 /* ═══════════════════════════════════════════════════════════════════════════
    UTILITIES
    ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SLIDE EDITOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+const SE = { moduleId: null, chapters: [], flatPages: [], currentIdx: 0, saveTimer: null };
+
+async function openSlideEditor(moduleId) {
+  const r = await api('getModule', { module_id: moduleId });
+  if (!r.ok) return toast(r.reason, 'error');
+
+  SE.moduleId = moduleId;
+  SE.module = r.module;
+  SE.chapters = r.chapters;
+
+  // Flatten all pages
+  SE.flatPages = [];
+  for (const ch of r.chapters) {
+    for (const pg of (ch.pages || [])) {
+      SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
+    }
+  }
+
+  SE.currentIdx = 0;
+  document.getElementById('se_module_title').textContent = r.module.title;
+  document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
+  document.getElementById('slide_editor').classList.add('active');
+
+  seRenderSidebar();
+  seLoadSlide(0);
+}
+
+function closeSlideEditor() {
+  document.getElementById('slide_editor').classList.remove('active');
+  editModule(SE.moduleId);
+}
+
+function seRenderSidebar() {
+  const list = document.getElementById('se_slides_list');
+  let html = '';
+  let slideNum = 0;
+
+  for (const ch of SE.chapters) {
+    html += `<div class="se-ch-label">${esc(ch.title)}</div>`;
+    for (const pg of (ch.pages || [])) {
+      const idx = SE.flatPages.findIndex(fp => fp.id === pg.id);
+      const isActive = idx === SE.currentIdx;
+      slideNum++;
+      html += `
+        <div class="se-thumb ${isActive ? 'active' : ''}" onclick="seLoadSlide(${idx})" title="${esc(pg.title || 'Untitled')}">
+          <span class="se-thumb-num">${slideNum}</span>
+          ${pg.video_url ? '<span class="se-thumb-vid">&#127909;</span>' : ''}
+          <div class="se-thumb-label">${esc(pg.title || 'Untitled')}</div>
+        </div>`;
+    }
+  }
+
+  if (SE.flatPages.length === 0) {
+    html = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">No slides yet.<br>Click + Slide to add one.</div>';
+  }
+
+  list.innerHTML = html;
+
+  // Update chapter select in props
+  const sel = document.getElementById('se_chapter_select');
+  sel.innerHTML = SE.chapters.map(ch => `<option value="${ch.id}">${esc(ch.title)}</option>`).join('');
+
+  // Update footer
+  document.getElementById('se_footer_info').textContent = SE.flatPages.length > 0
+    ? `Slide ${SE.currentIdx + 1} of ${SE.flatPages.length}` : 'No slides';
+}
+
+function seLoadSlide(idx) {
+  if (idx < 0 || idx >= SE.flatPages.length) return;
+  SE.currentIdx = idx;
+  const pg = SE.flatPages[idx];
+  const contentData = typeof pg.content === 'string' ? JSON.parse(pg.content || '{}') : (pg.content || {});
+
+  document.getElementById('se_slide_title').value = pg.title || '';
+  document.getElementById('se_content').innerHTML = contentData.html || '';
+  document.getElementById('se_video_url').value = pg.video_url || '';
+  document.getElementById('se_video_req').checked = !!pg.video_required;
+  document.getElementById('se_bg_url').value = pg.background_image || '';
+  document.getElementById('se_chapter_select').value = pg._chapterId;
+
+  // Update video bar
+  const vbar = document.getElementById('se_video_bar');
+  if (pg.video_url) {
+    vbar.classList.add('has-video');
+    document.getElementById('se_video_label').textContent = pg.video_url;
+  } else {
+    vbar.classList.remove('has-video');
+    document.getElementById('se_video_label').textContent = 'Click to add video (YouTube / Google Drive)';
+  }
+
+  // Update background
+  const bgEl = document.getElementById('se_canvas_bg');
+  if (pg.background_image) {
+    bgEl.style.backgroundImage = `url('${pg.background_image}')`;
+    bgEl.style.display = '';
+  } else {
+    bgEl.style.backgroundImage = '';
+    bgEl.style.display = 'none';
+  }
+
+  seRenderSidebar();
+}
+
+function seEditVideo() {
+  document.getElementById('se_video_url').focus();
+}
+
+function seDebounceSave() {
+  if (SE.saveTimer) clearTimeout(SE.saveTimer);
+  SE.saveTimer = setTimeout(() => seSaveCurrent(), 800);
+}
+
+async function seSaveCurrent() {
+  if (SE.flatPages.length === 0) return;
+  const pg = SE.flatPages[SE.currentIdx];
+
+  const title = document.getElementById('se_slide_title').value.trim();
+  const html = document.getElementById('se_content').innerHTML;
+  const videoUrl = document.getElementById('se_video_url').value.trim();
+  const videoReq = document.getElementById('se_video_req').checked;
+  const bgImage = document.getElementById('se_bg_url').value.trim();
+
+  // Update local state
+  pg.title = title;
+  pg.content = { html };
+  pg.video_url = videoUrl;
+  pg.video_required = videoReq;
+  pg.background_image = bgImage;
+
+  // Update video bar
+  const vbar = document.getElementById('se_video_bar');
+  if (videoUrl) {
+    vbar.classList.add('has-video');
+    document.getElementById('se_video_label').textContent = videoUrl;
+  } else {
+    vbar.classList.remove('has-video');
+    document.getElementById('se_video_label').textContent = 'Click to add video (YouTube / Google Drive)';
+  }
+
+  // Update bg
+  const bgEl = document.getElementById('se_canvas_bg');
+  if (bgImage) { bgEl.style.backgroundImage = `url('${bgImage}')`; bgEl.style.display = ''; }
+  else { bgEl.style.backgroundImage = ''; bgEl.style.display = 'none'; }
+
+  // Save to server
+  await api('admin/updatePage', {
+    page_id: pg.id, chapter_id: pg._chapterId, title, content_type: 'rich_text',
+    content: { html }, video_url: videoUrl, video_required: videoReq, background_image: bgImage
+  });
+
+  // Update sidebar thumbnail label
+  seRenderSidebar();
+}
+
+async function seAddSlide() {
+  // Add to current chapter or first chapter
+  let chapterId;
+  if (SE.flatPages.length > 0) {
+    chapterId = SE.flatPages[SE.currentIdx]._chapterId;
+  } else if (SE.chapters.length > 0) {
+    chapterId = SE.chapters[0].id;
+  } else {
+    // Create a chapter first
+    const cr = await api('admin/createChapter', { module_id: SE.moduleId, title: 'Chapter 1' });
+    if (!cr.ok) return toast('Failed to create chapter', 'error');
+    chapterId = cr.chapter.id;
+  }
+
+  const r = await api('admin/createPage', {
+    chapter_id: chapterId, title: 'New Slide', content_type: 'rich_text',
+    content: { html: '' }, video_url: '', video_required: false, background_image: ''
+  });
+
+  if (r.ok) {
+    // Reload module data
+    const mr = await api('getModule', { module_id: SE.moduleId });
+    if (mr.ok) {
+      SE.chapters = mr.chapters;
+      SE.flatPages = [];
+      for (const ch of mr.chapters) {
+        for (const pg of (ch.pages || [])) {
+          SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
+        }
+      }
+      seLoadSlide(SE.flatPages.length - 1);
+    }
+  }
+}
+
+async function seDeleteSlide() {
+  if (SE.flatPages.length === 0) return;
+  if (!confirm('Delete this slide?')) return;
+
+  const pg = SE.flatPages[SE.currentIdx];
+  await api('admin/deletePage', { page_id: pg.id });
+
+  // Reload
+  const mr = await api('getModule', { module_id: SE.moduleId });
+  if (mr.ok) {
+    SE.chapters = mr.chapters;
+    SE.flatPages = [];
+    for (const ch of mr.chapters) {
+      for (const pg of (ch.pages || [])) {
+        SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
+      }
+    }
+    SE.currentIdx = Math.min(SE.currentIdx, SE.flatPages.length - 1);
+    if (SE.flatPages.length > 0) seLoadSlide(SE.currentIdx);
+    else seRenderSidebar();
+  }
+  toast('Slide deleted', 'success');
+}
+
+async function seAddChapter() {
+  const title = prompt('Chapter name:');
+  if (!title) return;
+  await api('admin/createChapter', { module_id: SE.moduleId, title });
+
+  const mr = await api('getModule', { module_id: SE.moduleId });
+  if (mr.ok) {
+    SE.chapters = mr.chapters;
+    SE.flatPages = [];
+    for (const ch of mr.chapters) {
+      for (const pg of (ch.pages || [])) {
+        SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
+      }
+    }
+    seRenderSidebar();
+  }
+  toast('Chapter added', 'success');
+}
+
+async function seMoveToChapter(newChapterId) {
+  if (SE.flatPages.length === 0 || !newChapterId) return;
+  const pg = SE.flatPages[SE.currentIdx];
+  if (parseInt(newChapterId) === pg._chapterId) return;
+
+  await api('admin/updatePage', { page_id: pg.id, chapter_id: parseInt(newChapterId) });
+  pg._chapterId = parseInt(newChapterId);
+
+  // Reload to get proper order
+  const mr = await api('getModule', { module_id: SE.moduleId });
+  if (mr.ok) {
+    SE.chapters = mr.chapters;
+    SE.flatPages = [];
+    for (const ch of mr.chapters) {
+      for (const p of (ch.pages || [])) {
+        SE.flatPages.push({ ...p, _chapterId: ch.id, _chapterTitle: ch.title });
+      }
+    }
+    const newIdx = SE.flatPages.findIndex(fp => fp.id === pg.id);
+    seLoadSlide(newIdx >= 0 ? newIdx : 0);
+  }
+  toast('Slide moved', 'success');
+}
+
+async function seMoveSlide(direction) {
+  if (SE.flatPages.length === 0) return;
+  const pg = SE.flatPages[SE.currentIdx];
+  const ch = SE.chapters.find(c => c.id === pg._chapterId);
+  if (!ch) return;
+
+  const pages = ch.pages || [];
+  const localIdx = pages.findIndex(p => p.id === pg.id);
+  const swapIdx = direction === 'up' ? localIdx - 1 : localIdx + 1;
+  if (swapIdx < 0 || swapIdx >= pages.length) return;
+
+  const order = pages.map((p, i) => ({ id: p.id, sort_order: i }));
+  order[localIdx].sort_order = swapIdx;
+  order[swapIdx].sort_order = localIdx;
+
+  await api('admin/reorderPages', { order });
+
+  const mr = await api('getModule', { module_id: SE.moduleId });
+  if (mr.ok) {
+    SE.chapters = mr.chapters;
+    SE.flatPages = [];
+    for (const c of mr.chapters) {
+      for (const p of (c.pages || [])) {
+        SE.flatPages.push({ ...p, _chapterId: c.id, _chapterTitle: c.title });
+      }
+    }
+    const newIdx = SE.flatPages.findIndex(fp => fp.id === pg.id);
+    seLoadSlide(newIdx >= 0 ? newIdx : 0);
+  }
+}
+
+async function seUploadBg(input) {
+  if (!input.files[0]) return;
+  const r = await apiUpload('backgrounds', input.files[0]);
+  if (r.ok) {
+    document.getElementById('se_bg_url').value = r.filePath;
+    seSaveCurrent();
+    toast('Background uploaded', 'success');
+  }
+}
+
+function sePreview() {
+  closeSlideEditor();
+  previewModule(SE.moduleId);
+}
+
+async function sePublishToggle() {
+  const newState = !SE.module.is_published;
+  await api('admin/updateModule', { module_id: SE.moduleId, is_published: newState });
+  SE.module.is_published = newState;
+  document.getElementById('se_publish_btn').textContent = newState ? 'Unpublish' : 'Publish';
+  toast(newState ? 'Module published!' : 'Module unpublished', 'success');
+}
+
+function seExec(cmd, val) {
+  document.execCommand(cmd, false, val || null);
+  document.getElementById('se_content').focus();
+}
+
 function esc(s) {
   const d = document.createElement('div');
   d.textContent = s || '';
