@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
    DESIGN SYSTEM — Aradia EDU
@@ -409,6 +411,17 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 .chapter-pages { padding-left: 14px; display: none; }
 .chapter-pages.expanded { display: block; }
 
+.ch-progress-bar {
+  height: 3px; background: var(--input-bg); border-radius: 2px;
+  margin: 2px 14px 6px; overflow: hidden;
+}
+.ch-progress-fill {
+  height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, #e8465a, #ff8c6b);
+  transition: width 0.5s ease;
+}
+.ch-progress-fill.complete { background: linear-gradient(90deg, #34d399, #10b981); }
+
 .page-item {
   padding: 9px 14px; font-size: 13px; color: var(--text2);
   border-radius: var(--radius-xs); cursor: pointer; display: flex;
@@ -419,6 +432,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 .page-item.active {
   background: var(--sidebar-active); color: var(--accent);
   border-color: var(--accent-bg2);
+  border-left: 3px solid var(--accent);
 }
 .page-item .page-check { margin-left: auto; opacity: 0; color: var(--success); font-size: 13px; transition: opacity var(--transition); }
 .page-item.completed .page-check { opacity: 1; }
@@ -524,8 +538,38 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 
 .completion-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7);
- 
   display: flex; align-items: center; justify-content: center; z-index: 1000;
+  overflow: hidden;
+}
+.completion-overlay.show-confetti::before,
+.completion-overlay.show-confetti::after {
+  content: ''; position: absolute; top: -10px; width: 10px; height: 10px;
+  animation: confettiFall 3s ease-in forwards;
+}
+.completion-overlay.show-confetti::before { left: 30%; background: #e8465a; animation-delay: 0s; }
+.completion-overlay.show-confetti::after { left: 60%; background: #34d399; animation-delay: 0.3s; }
+
+@keyframes confettiFall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* Confetti particles via box-shadow */
+.completion-overlay.show-confetti .completion-card::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: 0;
+  box-shadow:
+    10vw -10px 0 #e8465a, 20vw -30px 0 #ff8c6b, 30vw -20px 0 #34d399,
+    40vw -40px 0 #10b981, 50vw -15px 0 #e8465a, 60vw -35px 0 #fbbf24,
+    70vw -25px 0 #34d399, 80vw -10px 0 #ff8c6b, 90vw -45px 0 #e8465a,
+    15vw -50px 0 #10b981, 25vw -5px 0 #fbbf24, 35vw -55px 0 #e8465a,
+    45vw -20px 0 #34d399, 55vw -60px 0 #ff8c6b, 65vw -30px 0 #fbbf24,
+    75vw -15px 0 #10b981, 85vw -50px 0 #e8465a, 95vw -25px 0 #34d399;
+  animation: confettiRain 2.5s ease-in forwards;
+  z-index: -1; pointer-events: none;
+}
+@keyframes confettiRain {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(110vh); opacity: 0; }
 }
 .completion-card {
   background: var(--card-bg); /* no blur */
@@ -970,6 +1014,42 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 [data-theme="dark"] .se-footer { background: #181723; }
 [data-theme="light"] .se-footer { background: #ffffff; }
 
+/* Toolbar enhancements */
+.se-toolbar-select {
+  padding: 4px 6px; border-radius: var(--radius-xs); background: var(--input-bg);
+  border: 1px solid var(--border); color: var(--text); font-size: 11px;
+  cursor: pointer; outline: none;
+}
+.se-toolbar-select:focus { border-color: var(--accent); }
+.se-color-btn {
+  position: relative; overflow: hidden; font-weight: 700;
+}
+
+/* Drag-and-drop */
+.se-thumb.dragging { opacity: 0.35; transform: scale(0.95); }
+.se-thumb.drop-above { border-top: 2.5px solid var(--accent) !important; margin-top: -1px; }
+.se-thumb.drop-below { border-bottom: 2.5px solid var(--accent) !important; margin-bottom: -1px; }
+.se-thumb { transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.1s ease; }
+
+/* Chapter management */
+.se-ch-group { margin-bottom: 2px; }
+.se-ch-label {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 6px 3px; cursor: default;
+}
+.se-ch-label-text {
+  font-size: 9px; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.8px; cursor: pointer;
+}
+.se-ch-label-text:hover { text-decoration: underline; }
+.se-ch-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+.se-ch-label:hover .se-ch-actions { opacity: 1; }
+.se-ch-delete {
+  background: none; border: none; color: var(--text3); font-size: 14px;
+  cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.se-ch-delete:hover { color: var(--danger); }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -1179,14 +1259,47 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
           <button class="se-btn" onclick="seExec('underline')" title="Underline"><u>U</u></button>
         </div>
         <div class="se-toolbar-group">
-          <button class="se-btn" onclick="seExec('formatBlock','H2')">H2</button>
-          <button class="se-btn" onclick="seExec('formatBlock','H3')">H3</button>
-          <button class="se-btn" onclick="seExec('insertUnorderedList')">&#8226; List</button>
-          <button class="se-btn" onclick="seExec('insertOrderedList')">1.</button>
+          <select class="se-toolbar-select" onchange="seSetFontSize(this.value);this.selectedIndex=0" title="Font size">
+            <option value="" disabled selected>Size</option>
+            <option value="12">12</option>
+            <option value="14">14</option>
+            <option value="16">16</option>
+            <option value="18">18</option>
+            <option value="20">20</option>
+            <option value="24">24</option>
+            <option value="28">28</option>
+            <option value="32">32</option>
+            <option value="36">36</option>
+            <option value="48">48</option>
+          </select>
+          <label class="se-btn se-color-btn" title="Text color">
+            A
+            <input type="color" value="#ffffff" onchange="seSetFontColor(this.value)" style="position:absolute;bottom:0;left:0;width:100%;height:4px;padding:0;border:none;cursor:pointer;opacity:0.8">
+          </label>
         </div>
         <div class="se-toolbar-group">
-          <button class="se-btn" onclick="seAddSlide()">+ Slide</button>
-          <button class="se-btn" onclick="seDeleteSlide()" style="color:var(--danger)">&#10005; Delete</button>
+          <button class="se-btn" onclick="seExec('formatBlock','H2')" title="Heading 2">H2</button>
+          <button class="se-btn" onclick="seExec('formatBlock','H3')" title="Heading 3">H3</button>
+          <button class="se-btn" onclick="seExec('insertUnorderedList')" title="Bullet list">&#8226; List</button>
+          <button class="se-btn" onclick="seExec('insertOrderedList')" title="Numbered list">1.</button>
+        </div>
+        <div class="se-toolbar-group">
+          <button class="se-btn" onclick="seExec('justifyLeft')" title="Align left">&#8676;</button>
+          <button class="se-btn" onclick="seExec('justifyCenter')" title="Align center">&#8596;</button>
+          <button class="se-btn" onclick="seExec('justifyRight')" title="Align right">&#8677;</button>
+        </div>
+        <div class="se-toolbar-group">
+          <button class="se-btn" onclick="seInsertLink()" title="Insert link">&#128279;</button>
+          <label class="se-btn" title="Insert image" style="cursor:pointer">
+            &#128444;
+            <input type="file" accept="image/*" style="display:none" onchange="seInsertImage(this)">
+          </label>
+          <button class="se-btn" onclick="seClearFormat()" title="Clear formatting">&#8709;</button>
+        </div>
+        <div class="se-toolbar-group">
+          <button class="se-btn" onclick="seAddSlide()" title="Add slide">+ Slide</button>
+          <button class="se-btn" onclick="seDuplicateSlide()" title="Duplicate slide">&#10697; Dup</button>
+          <button class="se-btn" onclick="seDeleteSlide()" style="color:var(--danger)" title="Delete slide">&#10005; Del</button>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="se-btn" onclick="sePreview()">Preview</button>
@@ -1530,6 +1643,10 @@ async function openModule(moduleId) {
   STATE.viewerPageIndex = startIdx;
   go('viewer');
   renderViewer();
+
+  if (startIdx > 0) {
+    toast(`Resuming from page ${startIdx + 1}`, 'success');
+  }
 }
 
 function renderViewer() {
@@ -1553,12 +1670,21 @@ function renderViewer() {
     const chComplete = chPages.length > 0 && chPages.every(p => p.user_completed);
     const isExpanded = currentPage && currentPage.chapter_id === ch.id;
 
+    const chDone = chPages.filter(p => p.user_completed).length;
+    const chPct = chPages.length > 0 ? Math.round((chDone / chPages.length) * 100) : 0;
+
     return `
       <div class="chapter-group">
         <div class="chapter-title ${isExpanded ? 'expanded' : ''}" onclick="toggleChapter(this)">
           <span class="ch-icon">&#9654;</span>
           ${esc(ch.title)}
-          ${chComplete ? '<span class="ch-check">&#10003;</span>' : ''}
+          <span style="margin-left:auto;display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;color:var(--text3);font-weight:500;text-transform:none;letter-spacing:0">${chDone}/${chPages.length}</span>
+            ${chComplete ? '<span class="ch-check">&#10003;</span>' : ''}
+          </span>
+        </div>
+        <div class="ch-progress-bar">
+          <div class="ch-progress-fill ${chComplete ? 'complete' : ''}" style="width:${chPct}%"></div>
         </div>
         <div class="chapter-pages ${isExpanded ? 'expanded' : ''}">
           ${chPages.map((pg, pi) => {
@@ -1808,7 +1934,9 @@ async function markPageComplete(page) {
 
 function showCompletion() {
   document.getElementById('completion_title').textContent = STATE.viewerModule.title + ' Complete!';
-  document.getElementById('completion_overlay').style.display = 'flex';
+  const overlay = document.getElementById('completion_overlay');
+  overlay.style.display = 'flex';
+  overlay.classList.add('show-confetti');
 }
 
 function exitViewer() {
@@ -1822,7 +1950,9 @@ function exitViewer() {
 }
 
 function closeCompletion() {
-  document.getElementById('completion_overlay').style.display = 'none';
+  const overlay = document.getElementById('completion_overlay');
+  overlay.style.display = 'none';
+  overlay.classList.remove('show-confetti');
   if (STATE._previewMode) {
     STATE._previewMode = false;
     go('admin');
@@ -2198,173 +2328,7 @@ async function publishModule(moduleId, publish) {
   editModule(moduleId);
 }
 
-async function importModuleFile(input) {
-  if (!input.files[0]) return;
-  const file = input.files[0];
-  const ext = file.name.split('.').pop().toLowerCase();
-
-  toast('Uploading file...', 'success');
-
-  const r = await apiUpload('modules', file);
-  if (!r.ok) return toast('Upload failed', 'error');
-
-  const baseTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-
-  if (ext === 'pdf') {
-    // Always show the split modal for PDFs
-    let pageCount = 1;
-    try {
-      const countR = await api('admin/getPdfPageCount', { file_path: r.filePath });
-      if (countR.ok && countR.pageCount > 0) pageCount = countR.pageCount;
-    } catch(e) { console.error('Page count error:', e); }
-
-    // Show split modal - user enters page count manually if detection failed
-    STATE._importData = { filePath: r.filePath, pageCount, baseTitle };
-    showImportSplitModal(pageCount, baseTitle);
-    return; // Don't reload editor yet - modal handles it
-  } else {
-    const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: baseTitle });
-    if (cr.ok) {
-      await api('admin/createPage', {
-        chapter_id: cr.chapter.id, title: baseTitle,
-        content_type: 'rich_text',
-        content: { html: `<p>Imported from <strong>${esc(file.name)}</strong></p><p style="margin-top:16px"><a href="${r.filePath}" download style="display:inline-block;padding:10px 24px;background:#e8465a;color:#fff;border-radius:50px;font-weight:600;text-decoration:none">Download Original File</a></p>` },
-        video_url: '', video_required: false, background_image: ''
-      });
-    }
-    toast('File imported!', 'success');
-    editModule(STATE.editingModule.id);
-  }
-}
-
-function showImportSplitModal(pageCount, baseTitle) {
-  STATE._importChapters = [{ title: 'Chapter 1', from: 1, to: pageCount }];
-
-  showModal(`
-    <h3>Split PDF into Chapters</h3>
-    <div style="padding:12px 16px;background:var(--accent-bg);border-radius:var(--radius-sm);margin-bottom:16px;font-size:13px;color:var(--accent);font-weight:500">
-      Detected <strong>${pageCount} pages</strong> in this PDF
-    </div>
-    <div class="form-group">
-      <label class="form-label">Total Pages in PDF</label>
-      <input type="number" class="form-input" id="import_page_count" value="${pageCount}" min="1" style="width:120px" onchange="updateImportPageCount(parseInt(this.value))">
-      <span style="font-size:12px;color:var(--text3);margin-left:8px">Edit if detection was wrong</span>
-    </div>
-    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-    <p style="font-size:13px;color:var(--text2);margin-bottom:12px"><strong>Define your chapters below.</strong> Each chapter gets a name and a page range. Each PDF page becomes a slide that you can then edit individually.</p>
-    <div id="import_chapter_rows"></div>
-    <button onclick="addImportChapter()" style="padding:8px 18px;border-radius:50px;background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;border:1px solid var(--border);margin-bottom:20px;width:100%;text-align:center">+ Add Another Chapter</button>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button onclick="executeImportSplit()" style="padding:10px 24px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Build Module</button>
-    </div>
-  `);
-  renderImportChapterRows();
-}
-
-function updateImportPageCount(count) {
-  STATE._importData.pageCount = count;
-  // Update last chapter's "to" if it exceeds
-  const last = STATE._importChapters[STATE._importChapters.length - 1];
-  if (last) last.to = count;
-  renderImportChapterRows();
-}
-
-function renderImportChapterRows() {
-  const rows = document.getElementById('import_chapter_rows');
-  if (!rows) return;
-  const pc = STATE._importData.pageCount;
-  rows.innerHTML = STATE._importChapters.map((ch, i) => `
-    <div style="margin-bottom:10px;padding:14px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
-        <span style="font-size:12px;font-weight:700;color:var(--accent);min-width:20px">${i+1}.</span>
-        <input class="form-input" value="${esc(ch.title)}" placeholder="Chapter name (e.g. Overview, Values, etc.)" onchange="STATE._importChapters[${i}].title=this.value" style="flex:1">
-        ${STATE._importChapters.length > 1 ? `<button onclick="removeImportChapter(${i})" style="padding:6px 14px;border-radius:50px;background:var(--danger-bg);color:var(--danger);font-size:12px;cursor:pointer;border:none">Remove</button>` : ''}
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;padding-left:30px">
-        <label style="font-size:12px;color:var(--text2);font-weight:600">Pages</label>
-        <input type="number" class="form-input" value="${ch.from}" min="1" max="${pc}" style="width:70px;text-align:center" onchange="STATE._importChapters[${i}].from=parseInt(this.value);renderImportChapterRows()">
-        <span style="color:var(--text3);font-size:13px">to</span>
-        <input type="number" class="form-input" value="${ch.to}" min="1" max="${pc}" style="width:70px;text-align:center" onchange="STATE._importChapters[${i}].to=parseInt(this.value);renderImportChapterRows()">
-        <span style="font-size:12px;color:var(--text3);font-weight:500">(${Math.max(0, ch.to - ch.from + 1)} slides)</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-function addImportChapter() {
-  const pc = STATE._importData.pageCount;
-  const last = STATE._importChapters[STATE._importChapters.length - 1];
-  const nextFrom = last ? last.to + 1 : 1;
-  if (nextFrom > pc) return toast('All pages are assigned - adjust ranges above or increase page count', 'error');
-  STATE._importChapters.push({ title: `Chapter ${STATE._importChapters.length + 1}`, from: nextFrom, to: pc });
-  renderImportChapterRows();
-}
-
-function removeImportChapter(idx) {
-  STATE._importChapters.splice(idx, 1);
-  renderImportChapterRows();
-}
-
-async function executeImportSplit() {
-  const { filePath, pageCount, baseTitle } = STATE._importData;
-  const chapters = STATE._importChapters;
-
-  // Validate no gaps or overlaps
-  for (const ch of chapters) {
-    if (!ch.title.trim()) return toast('All chapters need a title', 'error');
-    if (ch.from < 1 || ch.to > pageCount || ch.from > ch.to) return toast('Invalid page range', 'error');
-  }
-
-  toast('Creating chapters and pages...', 'success');
-
-  for (const ch of chapters) {
-    const cr = await api('admin/createChapter', { module_id: STATE.editingModule.id, title: ch.title.trim() });
-    if (!cr.ok) { toast('Failed to create chapter: ' + ch.title, 'error'); continue; }
-
-    for (let p = ch.from; p <= ch.to; p++) {
-      await api('admin/createPage', {
-        chapter_id: cr.chapter.id,
-        title: `Page ${p}`,
-        content_type: 'rich_text',
-        content: { html: `<iframe src="${filePath}#page=${p}" style="width:100%;height:650px;border:none;border-radius:8px"></iframe>` },
-        video_url: '', video_required: false, background_image: ''
-      });
-    }
-  }
-
-  const totalPages = chapters.reduce((sum, ch) => sum + (ch.to - ch.from + 1), 0);
-  hideModal();
-  toast(`Imported! ${chapters.length} chapters, ${totalPages} pages created.`, 'success');
-  editModule(STATE.editingModule.id);
-}
-
-async function movePageToChapter(pageId, newChapterId) {
-  if (!newChapterId) return;
-  await api('admin/updatePage', { page_id: pageId, chapter_id: parseInt(newChapterId) });
-  toast('Page moved', 'success');
-  editModule(STATE.editingModule.id);
-}
-
-async function movePageOrder(pageId, chapterId, direction) {
-  // Find the chapter and its pages
-  const ch = (STATE.editingChapters || []).find(c => c.id === chapterId);
-  if (!ch || !ch.pages) return;
-
-  const idx = ch.pages.findIndex(p => p.id === pageId);
-  if (idx < 0) return;
-
-  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-  if (swapIdx < 0 || swapIdx >= ch.pages.length) return;
-
-  // Swap sort orders
-  const order = ch.pages.map((p, i) => ({ id: p.id, sort_order: i }));
-  order[idx].sort_order = swapIdx;
-  order[swapIdx].sort_order = idx;
-
-  await api('admin/reorderPages', { order });
-  editModule(STATE.editingModule.id);
-}
+// importModuleFile, movePageToChapter, movePageOrder — moved to slide-editor.js
 
 async function saveModuleField() {
   const id = STATE.editingModule.id;
@@ -2784,358 +2748,7 @@ async function unassignModule(moduleId, email) {
   loadAssignments();
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   UTILITIES
-   ═══════════════════════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════════════════════
-   SLIDE EDITOR
-   ═══════════════════════════════════════════════════════════════════════════ */
-const SE = { moduleId: null, chapters: [], flatPages: [], currentIdx: 0, saveTimer: null };
-
-async function openSlideEditor(moduleId) {
-  try {
-    const r = await api('getModule', { module_id: moduleId });
-    if (!r.ok) return toast(r.reason, 'error');
-
-    SE.moduleId = moduleId;
-    SE.module = r.module;
-    SE.chapters = r.chapters;
-    SE._loading = true; // prevent auto-save during load
-
-    SE.flatPages = [];
-    for (const ch of r.chapters) {
-      for (const pg of (ch.pages || [])) {
-        SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
-      }
-    }
-
-    SE.currentIdx = 0;
-
-    // Use normal page system - hide header, show slide editor page
-    document.querySelector('.app-header').style.display = 'none';
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
-    document.getElementById('page_slide_editor').classList.add('active');
-    STATE.currentPage = 'slide_editor';
-
-    // Apply theme colors inline
-    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    document.getElementById('se_toolbar').style.background = isDark ? '#181723' : '#ffffff';
-    document.getElementById('se_sidebar_el').style.background = isDark ? '#0f0e15' : '#ffffff';
-    document.getElementById('se_canvas_area').style.background = isDark ? '#121118' : '#eeedf5';
-    document.getElementById('se_canvas').style.background = isDark ? '#1e1d2a' : '#ffffff';
-    document.getElementById('se_canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.3)';
-    document.getElementById('se_props_el').style.background = isDark ? '#0f0e15' : '#ffffff';
-    document.getElementById('se_footer_el').style.background = isDark ? '#181723' : '#ffffff';
-
-    document.getElementById('se_module_title').textContent = r.module.title;
-    document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
-
-    seRenderSidebar();
-    if (SE.flatPages.length > 0) seLoadSlide(0);
-
-    SE._loading = false;
-    console.log('Slide editor opened:', SE.flatPages.length, 'slides');
-  } catch(e) {
-    console.error('openSlideEditor error:', e);
-    toast('Failed to open editor', 'error');
-    document.querySelector('.app-header').style.display = '';
-  }
-}
-
-function closeSlideEditor() {
-  document.querySelector('.app-header').style.display = '';
-  go('admin');
-  loadAdminData();
-}
-
-function seRenderSidebar() {
-  const list = document.getElementById('se_slides_list');
-  let html = '';
-  let slideNum = 0;
-
-  for (const ch of SE.chapters) {
-    html += `<div class="se-ch-label">${esc(ch.title)}</div>`;
-    for (const pg of (ch.pages || [])) {
-      const idx = SE.flatPages.findIndex(fp => fp.id === pg.id);
-      const isActive = idx === SE.currentIdx;
-      slideNum++;
-      html += `
-        <div class="se-thumb ${isActive ? 'active' : ''}" onclick="seLoadSlide(${idx})" title="${esc(pg.title || 'Untitled')}">
-          <span class="se-thumb-num">${slideNum}</span>
-          ${pg.video_url ? '<span class="se-thumb-vid">&#127909;</span>' : ''}
-          <div class="se-thumb-label">${esc(pg.title || 'Untitled')}</div>
-        </div>`;
-    }
-  }
-
-  if (SE.flatPages.length === 0) {
-    html = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">No slides yet.<br>Click + Slide to add one.</div>';
-  }
-
-  list.innerHTML = html;
-
-  // Update chapter select in props
-  const sel = document.getElementById('se_chapter_select');
-  sel.innerHTML = SE.chapters.map(ch => `<option value="${ch.id}">${esc(ch.title)}</option>`).join('');
-
-  // Update footer
-  document.getElementById('se_footer_info').textContent = SE.flatPages.length > 0
-    ? `Slide ${SE.currentIdx + 1} of ${SE.flatPages.length}` : 'No slides';
-}
-
-function seLoadSlide(idx) {
-  try {
-  if (idx < 0 || idx >= SE.flatPages.length) return;
-  SE.currentIdx = idx;
-  const pg = SE.flatPages[idx];
-  let contentData = {};
-  try { contentData = typeof pg.content === 'string' ? JSON.parse(pg.content || '{}') : (pg.content || {}); }
-  catch(e) { contentData = { html: String(pg.content || '') }; }
-
-  document.getElementById('se_slide_title').value = pg.title || '';
-  document.getElementById('se_content').innerHTML = contentData.html || '';
-  document.getElementById('se_video_url').value = pg.video_url || '';
-  document.getElementById('se_video_req').checked = !!pg.video_required;
-  document.getElementById('se_bg_url').value = pg.background_image || '';
-  document.getElementById('se_chapter_select').value = pg._chapterId;
-
-  // Update video bar
-  const vbar = document.getElementById('se_video_bar');
-  if (pg.video_url) {
-    vbar.classList.add('has-video');
-    document.getElementById('se_video_label').textContent = pg.video_url;
-  } else {
-    vbar.classList.remove('has-video');
-    document.getElementById('se_video_label').textContent = 'Click to add video (YouTube / Google Drive)';
-  }
-
-  // Update background
-  const bgEl = document.getElementById('se_canvas_bg');
-  if (pg.background_image) {
-    bgEl.style.backgroundImage = `url('${pg.background_image}')`;
-    bgEl.style.display = '';
-  } else {
-    bgEl.style.backgroundImage = '';
-    bgEl.style.display = 'none';
-  }
-
-  seRenderSidebar();
-  } catch(e) { console.error('seLoadSlide error:', e); }
-}
-
-function seEditVideo() {
-  document.getElementById('se_video_url').focus();
-}
-
-function seDebounceSave() {
-  if (SE._loading) return;
-  if (SE.saveTimer) clearTimeout(SE.saveTimer);
-  SE.saveTimer = setTimeout(() => seSaveCurrent(), 800);
-}
-
-async function seSaveCurrent() {
-  if (SE.flatPages.length === 0) return;
-  const pg = SE.flatPages[SE.currentIdx];
-
-  const title = document.getElementById('se_slide_title').value.trim();
-  const html = document.getElementById('se_content').innerHTML;
-  const videoUrl = document.getElementById('se_video_url').value.trim();
-  const videoReq = document.getElementById('se_video_req').checked;
-  const bgImage = document.getElementById('se_bg_url').value.trim();
-
-  // Update local state
-  pg.title = title;
-  pg.content = { html };
-  pg.video_url = videoUrl;
-  pg.video_required = videoReq;
-  pg.background_image = bgImage;
-
-  // Update video bar
-  const vbar = document.getElementById('se_video_bar');
-  if (videoUrl) {
-    vbar.classList.add('has-video');
-    document.getElementById('se_video_label').textContent = videoUrl;
-  } else {
-    vbar.classList.remove('has-video');
-    document.getElementById('se_video_label').textContent = 'Click to add video (YouTube / Google Drive)';
-  }
-
-  // Update bg
-  const bgEl = document.getElementById('se_canvas_bg');
-  if (bgImage) { bgEl.style.backgroundImage = `url('${bgImage}')`; bgEl.style.display = ''; }
-  else { bgEl.style.backgroundImage = ''; bgEl.style.display = 'none'; }
-
-  // Save to server
-  await api('admin/updatePage', {
-    page_id: pg.id, chapter_id: pg._chapterId, title, content_type: 'rich_text',
-    content: { html }, video_url: videoUrl, video_required: videoReq, background_image: bgImage
-  });
-
-  // Update sidebar thumbnail label
-  seRenderSidebar();
-}
-
-async function seAddSlide() {
-  // Add to current chapter or first chapter
-  let chapterId;
-  if (SE.flatPages.length > 0) {
-    chapterId = SE.flatPages[SE.currentIdx]._chapterId;
-  } else if (SE.chapters.length > 0) {
-    chapterId = SE.chapters[0].id;
-  } else {
-    // Create a chapter first
-    const cr = await api('admin/createChapter', { module_id: SE.moduleId, title: 'Chapter 1' });
-    if (!cr.ok) return toast('Failed to create chapter', 'error');
-    chapterId = cr.chapter.id;
-  }
-
-  const r = await api('admin/createPage', {
-    chapter_id: chapterId, title: 'New Slide', content_type: 'rich_text',
-    content: { html: '' }, video_url: '', video_required: false, background_image: ''
-  });
-
-  if (r.ok) {
-    // Reload module data
-    const mr = await api('getModule', { module_id: SE.moduleId });
-    if (mr.ok) {
-      SE.chapters = mr.chapters;
-      SE.flatPages = [];
-      for (const ch of mr.chapters) {
-        for (const pg of (ch.pages || [])) {
-          SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
-        }
-      }
-      seLoadSlide(SE.flatPages.length - 1);
-    }
-  }
-}
-
-async function seDeleteSlide() {
-  if (SE.flatPages.length === 0) return;
-  if (!confirm('Delete this slide?')) return;
-
-  const pg = SE.flatPages[SE.currentIdx];
-  await api('admin/deletePage', { page_id: pg.id });
-
-  // Reload
-  const mr = await api('getModule', { module_id: SE.moduleId });
-  if (mr.ok) {
-    SE.chapters = mr.chapters;
-    SE.flatPages = [];
-    for (const ch of mr.chapters) {
-      for (const pg of (ch.pages || [])) {
-        SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
-      }
-    }
-    SE.currentIdx = Math.min(SE.currentIdx, SE.flatPages.length - 1);
-    if (SE.flatPages.length > 0) seLoadSlide(SE.currentIdx);
-    else seRenderSidebar();
-  }
-  toast('Slide deleted', 'success');
-}
-
-async function seAddChapter() {
-  const title = prompt('Chapter name:');
-  if (!title) return;
-  await api('admin/createChapter', { module_id: SE.moduleId, title });
-
-  const mr = await api('getModule', { module_id: SE.moduleId });
-  if (mr.ok) {
-    SE.chapters = mr.chapters;
-    SE.flatPages = [];
-    for (const ch of mr.chapters) {
-      for (const pg of (ch.pages || [])) {
-        SE.flatPages.push({ ...pg, _chapterId: ch.id, _chapterTitle: ch.title });
-      }
-    }
-    seRenderSidebar();
-  }
-  toast('Chapter added', 'success');
-}
-
-async function seMoveToChapter(newChapterId) {
-  if (SE.flatPages.length === 0 || !newChapterId) return;
-  const pg = SE.flatPages[SE.currentIdx];
-  if (parseInt(newChapterId) === pg._chapterId) return;
-
-  await api('admin/updatePage', { page_id: pg.id, chapter_id: parseInt(newChapterId) });
-  pg._chapterId = parseInt(newChapterId);
-
-  // Reload to get proper order
-  const mr = await api('getModule', { module_id: SE.moduleId });
-  if (mr.ok) {
-    SE.chapters = mr.chapters;
-    SE.flatPages = [];
-    for (const ch of mr.chapters) {
-      for (const p of (ch.pages || [])) {
-        SE.flatPages.push({ ...p, _chapterId: ch.id, _chapterTitle: ch.title });
-      }
-    }
-    const newIdx = SE.flatPages.findIndex(fp => fp.id === pg.id);
-    seLoadSlide(newIdx >= 0 ? newIdx : 0);
-  }
-  toast('Slide moved', 'success');
-}
-
-async function seMoveSlide(direction) {
-  if (SE.flatPages.length === 0) return;
-  const pg = SE.flatPages[SE.currentIdx];
-  const ch = SE.chapters.find(c => c.id === pg._chapterId);
-  if (!ch) return;
-
-  const pages = ch.pages || [];
-  const localIdx = pages.findIndex(p => p.id === pg.id);
-  const swapIdx = direction === 'up' ? localIdx - 1 : localIdx + 1;
-  if (swapIdx < 0 || swapIdx >= pages.length) return;
-
-  const order = pages.map((p, i) => ({ id: p.id, sort_order: i }));
-  order[localIdx].sort_order = swapIdx;
-  order[swapIdx].sort_order = localIdx;
-
-  await api('admin/reorderPages', { order });
-
-  const mr = await api('getModule', { module_id: SE.moduleId });
-  if (mr.ok) {
-    SE.chapters = mr.chapters;
-    SE.flatPages = [];
-    for (const c of mr.chapters) {
-      for (const p of (c.pages || [])) {
-        SE.flatPages.push({ ...p, _chapterId: c.id, _chapterTitle: c.title });
-      }
-    }
-    const newIdx = SE.flatPages.findIndex(fp => fp.id === pg.id);
-    seLoadSlide(newIdx >= 0 ? newIdx : 0);
-  }
-}
-
-async function seUploadBg(input) {
-  if (!input.files[0]) return;
-  const r = await apiUpload('backgrounds', input.files[0]);
-  if (r.ok) {
-    document.getElementById('se_bg_url').value = r.filePath;
-    seSaveCurrent();
-    toast('Background uploaded', 'success');
-  }
-}
-
-function sePreview() {
-  closeSlideEditor();
-  previewModule(SE.moduleId);
-}
-
-async function sePublishToggle() {
-  const newState = !SE.module.is_published;
-  await api('admin/updateModule', { module_id: SE.moduleId, is_published: newState });
-  SE.module.is_published = newState;
-  document.getElementById('se_publish_btn').textContent = newState ? 'Unpublish' : 'Publish';
-  toast(newState ? 'Module published!' : 'Module unpublished', 'success');
-}
-
-function seExec(cmd, val) {
-  document.execCommand(cmd, false, val || null);
-  document.getElementById('se_content').focus();
-}
+// Slide editor code — moved to slide-editor.js
 
 function esc(s) {
   const d = document.createElement('div');
@@ -3200,5 +2813,6 @@ if (uploadZone) {
   });
 }
 </script>
+<script src="slide-editor.js"></script>
 </body>
 </html>
