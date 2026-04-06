@@ -52,13 +52,13 @@ async function openSlideEditor(moduleId) {
     STATE.currentPage = 'slide_editor';
 
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    document.getElementById('se_toolbar').style.background = isDark ? '#181723' : '#ffffff';
-    document.getElementById('se_sidebar_el').style.background = isDark ? '#0f0e15' : '#ffffff';
-    document.getElementById('se_canvas_area').style.background = isDark ? '#121118' : '#eeedf5';
-    document.getElementById('se_canvas').style.background = isDark ? '#1e1d2a' : '#ffffff';
-    document.getElementById('se_canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.3)';
-    document.getElementById('se_props_el').style.background = isDark ? '#0f0e15' : '#ffffff';
-    document.getElementById('se_footer_el').style.background = isDark ? '#181723' : '#ffffff';
+    document.getElementById('se_toolbar').style.background = isDark ? '#12111e' : '#faf9ff';
+    document.getElementById('se_sidebar_el').style.background = isDark ? '#0d0c14' : '#f5f4fa';
+    document.getElementById('se_canvas_area').style.background = isDark ? '#0a0a12' : '#ebe9f3';
+    document.getElementById('se_canvas').style.background = isDark ? '#161522' : '#ffffff';
+    document.getElementById('se_canvas').style.boxShadow = '0 4px 32px rgba(0,0,0,0.4)';
+    document.getElementById('se_props_el').style.background = isDark ? '#0d0c14' : '#f5f4fa';
+    document.getElementById('se_footer_el').style.background = isDark ? '#12111e' : '#faf9ff';
 
     document.getElementById('se_module_title').textContent = r.module.title;
     document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
