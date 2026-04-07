@@ -1045,10 +1045,13 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 
 .se-thumb {
   width: 100%; aspect-ratio: 16/10; background: var(--surface);
-  background-size: cover; background-position: center;
   border: 2px solid transparent; border-radius: 6px;
   margin-bottom: 5px; cursor: pointer; overflow: hidden;
   position: relative; transition: all 0.15s ease;
+}
+.se-thumb-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; pointer-events: none;
 }
 .se-thumb:hover { border-color: var(--border-hover); }
 .se-thumb.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }

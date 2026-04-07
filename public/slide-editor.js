@@ -131,11 +131,11 @@ function seRenderSidebar() {
       const idx = SE.flatPages.findIndex(fp => fp.id === pg.id);
       const isActive = idx === SE.currentIdx;
       slideNum++;
-      const thumbBg = pg.background_image ? `background-image:url('${pg.background_image}')` : '';
       html += `
         <div class="se-thumb ${isActive ? 'active' : ''}" onclick="seLoadSlide(${idx})"
              draggable="true" data-page-id="${pg.id}" data-chapter-id="${ch.id}" data-idx="${idx}"
-             title="${esc(pg.title || 'Untitled')}" style="${thumbBg}">
+             title="${esc(pg.title || 'Untitled')}">
+          ${pg.background_image ? `<img class="se-thumb-img" src="${pg.background_image}" loading="lazy" alt="">` : ''}
           ${pg.video_url ? '<span class="se-thumb-vid">&#127909;</span>' : ''}
           <div class="se-thumb-label">${esc(pg.title || 'Untitled')}</div>
         </div>`;
