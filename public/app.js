@@ -479,10 +479,12 @@ async function markVideoWatched(page) {
 
 function toggleChapter(el) {
   el.classList.toggle('expanded');
-  // The ch-progress-bar is the next sibling, chapter-pages is after that
-  const progressBar = el.nextElementSibling;
-  const pages = progressBar.nextElementSibling;
-  if (pages) pages.classList.toggle('expanded');
+  // Find the chapter-pages within the same chapter-group parent
+  const group = el.closest('.chapter-group');
+  if (group) {
+    const pages = group.querySelector('.chapter-pages');
+    if (pages) pages.classList.toggle('expanded');
+  }
 }
 
 function goToPage(idx) {
@@ -765,7 +767,12 @@ async function createModule() {
     description: document.getElementById('new_module_desc').value.trim()
   });
 
-  if (r.ok) { hideModal(); toast('Module created!', 'success'); loadAdminData(); }
+  if (r.ok) {
+    hideModal();
+    toast('Module created! Opening editor...', 'success');
+    // Go straight to slide editor
+    openSlideEditor(r.module.id);
+  }
 }
 
 async function togglePublish(id, published) {
@@ -1374,10 +1381,13 @@ function toast(msg, type = 'success') {
   setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// Drag and drop for manual upload zone
+// Drag and drop + click for manual upload zone
 document.addEventListener('DOMContentLoaded', () => {
   const uploadZone = document.getElementById('manual_upload_zone');
   if (uploadZone) {
+    uploadZone.addEventListener('click', () => {
+      document.getElementById('manual_file_input').click();
+    });
     ['dragenter', 'dragover'].forEach(evt => {
       uploadZone.addEventListener(evt, e => {
         e.preventDefault();
@@ -1385,14 +1395,15 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadZone.style.background = 'var(--accent-bg)';
       });
     });
-    ['dragleave', 'drop'].forEach(evt => {
-      uploadZone.addEventListener(evt, e => {
-        e.preventDefault();
-        uploadZone.style.borderColor = '';
-        uploadZone.style.background = '';
-      });
+    uploadZone.addEventListener('dragleave', e => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '';
+      uploadZone.style.background = '';
     });
     uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '';
+      uploadZone.style.background = '';
       const file = e.dataTransfer.files[0];
       if (file) {
         const input = document.getElementById('manual_file_input');

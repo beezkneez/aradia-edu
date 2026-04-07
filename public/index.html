@@ -228,6 +228,10 @@
         </div>
         <div class="se-toolbar-group">
           <button class="se-btn" onclick="seAddSlide()" title="Add slide">+ Slide</button>
+          <label class="se-btn" title="Import PDF" style="cursor:pointer">
+            &#128196; Import
+            <input type="file" accept=".pdf" style="display:none" onchange="seImportPdf(this)">
+          </label>
           <button class="se-btn" onclick="seDuplicateSlide()" title="Duplicate slide">&#10697; Dup</button>
           <button class="se-btn" onclick="seDeleteSlide()" style="color:var(--danger)" title="Delete slide">&#10005; Del</button>
         </div>

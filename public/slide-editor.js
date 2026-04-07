@@ -36,6 +36,10 @@ async function openSlideEditor(moduleId) {
     SE.chapters = r.chapters;
     SE._loading = true;
 
+    // Also set STATE.editingModule so import functions work from within the editor
+    STATE.editingModule = r.module;
+    STATE.editingChapters = r.chapters;
+
     SE.flatPages = [];
     for (const ch of r.chapters) {
       for (const pg of (ch.pages || [])) {
@@ -51,13 +55,12 @@ async function openSlideEditor(moduleId) {
     document.getElementById('page_slide_editor').classList.add('active');
     STATE.currentPage = 'slide_editor';
 
-    // Theme is handled by styles.css, no inline overrides needed
-
     document.getElementById('se_module_title').textContent = r.module.title;
     document.getElementById('se_publish_btn').textContent = r.module.is_published ? 'Unpublish' : 'Publish';
 
     seRenderSidebar();
     if (SE.flatPages.length > 0) seLoadSlide(0);
+    else seShowEmptyState();
 
     SE._loading = false;
   } catch(e) {
@@ -71,6 +74,43 @@ function closeSlideEditor() {
   document.querySelector('.app-header').style.display = '';
   go('admin');
   loadAdminData();
+}
+
+function seShowEmptyState() {
+  const canvas = document.getElementById('se_canvas');
+  const content = document.getElementById('se_content');
+  const title = document.getElementById('se_slide_title');
+  title.value = '';
+  content.innerHTML = `
+    <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+      <div style="font-size:48px;margin-bottom:16px;opacity:0.2">&#128196;</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text2);margin-bottom:8px;font-family:var(--font-display)">No slides yet</div>
+      <div style="font-size:13px;margin-bottom:24px">Import a PDF slide deck or add slides manually</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <label style="padding:10px 24px;border-radius:50px;background:var(--gradient-accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-display)">
+          Import PDF
+          <input type="file" accept=".pdf" style="display:none" onchange="seImportPdf(this)">
+        </label>
+        <button onclick="seAddSlide()" style="padding:10px 24px;border-radius:50px;background:var(--surface2);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);font-family:var(--font-display)">+ Add Blank Slide</button>
+      </div>
+    </div>`;
+}
+
+async function seImportPdf(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'pdf') return toast('Please select a PDF file', 'error');
+
+  // Make sure STATE.editingModule is set for importModuleFile
+  STATE.editingModule = SE.module;
+  STATE.editingChapters = SE.chapters;
+
+  // Store the module ID so after import we reopen the editor
+  SE._importReturnToEditor = true;
+
+  // Use the existing import flow
+  await importModuleFile(input);
 }
 
 // ─── Sidebar Rendering with Drag-and-Drop ──────────────────────────────────
@@ -104,7 +144,14 @@ function seRenderSidebar() {
   }
 
   if (SE.flatPages.length === 0) {
-    html = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">No slides yet.<br>Click + Slide to add one.</div>';
+    html = `<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">
+      No slides yet.<br><br>
+      <button class="se-btn" onclick="seAddSlide()" style="width:100%;justify-content:center;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bg2);margin-bottom:6px">+ Add Slide</button>
+      <label class="se-btn" style="width:100%;justify-content:center;background:var(--surface2);border:1px solid var(--border);cursor:pointer">
+        Import PDF
+        <input type="file" accept=".pdf" style="display:none" onchange="seImportPdf(this)">
+      </label>
+    </div>`;
   }
 
   list.innerHTML = html;
@@ -618,7 +665,12 @@ async function importModuleFile(input) {
       });
     }
     toast('File imported!', 'success');
-    editModule(STATE.editingModule.id);
+    if (SE._importReturnToEditor || STATE.currentPage === 'slide_editor') {
+      SE._importReturnToEditor = false;
+      openSlideEditor(STATE.editingModule.id);
+    } else {
+      editModule(STATE.editingModule.id);
+    }
   }
 }
 
@@ -779,7 +831,14 @@ async function executeImportSplit() {
   STATE._pdfDoc = null;
   hideModal();
   toast(`Imported! ${chapters.length} chapters, ${totalSlides} slides created.`, 'success');
-  editModule(STATE.editingModule.id);
+
+  // If we were in the slide editor, go back to it; otherwise go to settings
+  if (SE._importReturnToEditor || STATE.currentPage === 'slide_editor') {
+    SE._importReturnToEditor = false;
+    openSlideEditor(STATE.editingModule.id);
+  } else {
+    editModule(STATE.editingModule.id);
+  }
 }
 
 // ─── Admin module editor helpers (used outside slide editor) ───────────────
