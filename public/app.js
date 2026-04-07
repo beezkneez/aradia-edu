@@ -304,7 +304,6 @@ function renderViewer() {
             const isActive = flatIdx === STATE.viewerPageIndex;
             return `
               <div class="page-item ${isActive ? 'active' : ''} ${pg.user_completed ? 'completed' : ''}" onclick="goToPage(${flatIdx})">
-                <span class="page-num">${pi + 1}</span>
                 ${esc(pg.title || 'Untitled Page')}
                 <span class="page-check">&#10003;</span>
               </div>`;

@@ -135,7 +135,6 @@ function seRenderSidebar() {
         <div class="se-thumb ${isActive ? 'active' : ''}" onclick="seLoadSlide(${idx})"
              draggable="true" data-page-id="${pg.id}" data-chapter-id="${ch.id}" data-idx="${idx}"
              title="${esc(pg.title || 'Untitled')}">
-          <span class="se-thumb-num">${slideNum}</span>
           ${pg.video_url ? '<span class="se-thumb-vid">&#127909;</span>' : ''}
           <div class="se-thumb-label">${esc(pg.title || 'Untitled')}</div>
         </div>`;
