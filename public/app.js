@@ -350,7 +350,8 @@ function renderSlide(page) {
   }
 
   const contentData = typeof page.content === 'string' ? JSON.parse(page.content || '{}') : (page.content || {});
-  const bgStyle = page.background_image ? `style="background-image:url('${page.background_image}')"` : '';
+  const bgOpacity = contentData.bg_opacity != null ? contentData.bg_opacity / 100 : 1;
+  const bgStyle = page.background_image ? `style="background-image:url('${page.background_image}');opacity:${bgOpacity}"` : '';
 
   let videoHtml = '';
   if (page.video_url) {
@@ -388,7 +389,7 @@ function renderSlide(page) {
   const bodyHtml = contentData.html || contentData.text || '';
 
   container.innerHTML = `
-    <div class="slide-container">
+    <div class="slide-container ${page.background_image ? 'has-bg' : ''}">
       ${page.background_image ? `<div class="slide-bg" ${bgStyle}></div>` : ''}
       <div class="slide-inner">
         <div class="slide-title">${esc(page.title || '')}</div>

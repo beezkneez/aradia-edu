@@ -545,17 +545,26 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
   background: var(--bg2);
 }
 .slide-container {
-  max-width: 920px; width: 100%; min-height: 520px;
+  max-width: 960px; width: 100%; min-height: 520px;
   background: var(--surface);
   border-radius: 20px; border: 1px solid var(--border);
   overflow: hidden; position: relative;
   box-shadow: var(--shadow-lg);
 }
+.slide-container.has-bg { aspect-ratio: 16/10; }
 .slide-bg {
-  position: absolute; inset: 0; background-size: cover;
-  background-position: center; opacity: 0.15;
+  position: absolute; inset: 0; background-size: contain;
+  background-position: center; background-repeat: no-repeat;
+  opacity: 1;
 }
 .slide-inner { position: relative; z-index: 1; padding: 56px 64px; }
+.slide-container.has-bg .slide-inner {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 24px 32px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+}
+.slide-container.has-bg .slide-title { color: #fff; font-size: 24px; margin-bottom: 8px; }
+.slide-container.has-bg .slide-body { color: rgba(255,255,255,0.9); font-size: 14px; }
 .slide-title {
   font-family: var(--font-display); font-size: 32px; font-weight: 700;
   margin-bottom: 28px; line-height: 1.25; letter-spacing: -0.5px;
@@ -1055,16 +1064,24 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
   background: var(--bg);
 }
 .se-canvas {
-  width: 100%; max-width: 880px; min-height: 500px;
+  width: 100%; max-width: 960px; aspect-ratio: 16/10;
   border: 1px solid var(--border);
   border-radius: 14px; box-shadow: var(--shadow-lg);
   position: relative; overflow: hidden; display: flex; flex-direction: column;
   background: var(--surface);
 }
 .se-canvas-bg {
-  position: absolute; inset: 0; background-size: cover; background-position: center;
-  opacity: 0.15; pointer-events: none;
+  position: absolute; inset: 0; background-size: contain; background-position: center;
+  background-repeat: no-repeat; pointer-events: none;
+  /* opacity set dynamically via JS */
 }
+.se-canvas.has-bg .se-slide-title,
+.se-canvas.has-bg .se-content {
+  background: rgba(0,0,0,0.55); border-radius: var(--radius-xs);
+  color: #fff; margin: 4px 8px; padding: 8px 16px;
+}
+.se-canvas.has-bg .se-slide-title { font-size: 20px; padding: 10px 16px 6px; }
+.se-canvas.has-bg .se-video-bar { margin: 4px 8px; }
 .se-slide-title {
   font-family: var(--font-display); font-size: 24px; font-weight: 700;
   background: none; border: none; color: var(--text); width: 100%;

@@ -284,6 +284,11 @@
                 <input type="file" accept="image/*" style="display:none" onchange="seUploadBg(this)">
               </label>
             </div>
+            <div class="se-props-row" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+              <span style="font-size:11px;color:var(--text3);white-space:nowrap">Opacity</span>
+              <input type="range" id="se_bg_opacity" min="10" max="100" value="100" style="flex:1;accent-color:var(--accent)" oninput="seUpdateBgOpacity(this.value)" onchange="seSaveCurrent()">
+              <span id="se_bg_opacity_label" style="font-size:10px;color:var(--text3);min-width:28px;text-align:right">100%</span>
+            </div>
           </div>
           <div class="se-props-section">
             <div class="se-props-title">Chapter</div>

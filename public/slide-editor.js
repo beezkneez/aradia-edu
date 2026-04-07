@@ -304,12 +304,20 @@ function seLoadSlide(idx) {
     }
 
     const bgEl = document.getElementById('se_canvas_bg');
+    const canvas = document.getElementById('se_canvas');
+    const bgOpacity = contentData.bg_opacity != null ? contentData.bg_opacity : 100;
+    document.getElementById('se_bg_opacity').value = bgOpacity;
+    document.getElementById('se_bg_opacity_label').textContent = bgOpacity + '%';
+
     if (pg.background_image) {
       bgEl.style.backgroundImage = `url('${pg.background_image}')`;
+      bgEl.style.opacity = bgOpacity / 100;
       bgEl.style.display = '';
+      canvas.classList.add('has-bg');
     } else {
       bgEl.style.backgroundImage = '';
       bgEl.style.display = 'none';
+      canvas.classList.remove('has-bg');
     }
 
     seRenderSidebar();
@@ -336,9 +344,10 @@ async function seSaveCurrent() {
   const videoUrl = document.getElementById('se_video_url').value.trim();
   const videoReq = document.getElementById('se_video_req').checked;
   const bgImage = document.getElementById('se_bg_url').value.trim();
+  const bgOpacity = parseInt(document.getElementById('se_bg_opacity').value) || 100;
 
   pg.title = title;
-  pg.content = { html };
+  pg.content = { html, bg_opacity: bgOpacity };
   pg.video_url = videoUrl;
   pg.video_required = videoReq;
   pg.background_image = bgImage;
@@ -353,12 +362,20 @@ async function seSaveCurrent() {
   }
 
   const bgEl = document.getElementById('se_canvas_bg');
-  if (bgImage) { bgEl.style.backgroundImage = `url('${bgImage}')`; bgEl.style.display = ''; }
-  else { bgEl.style.backgroundImage = ''; bgEl.style.display = 'none'; }
+  const canvas = document.getElementById('se_canvas');
+  if (bgImage) {
+    bgEl.style.backgroundImage = `url('${bgImage}')`;
+    bgEl.style.display = '';
+    canvas.classList.add('has-bg');
+  } else {
+    bgEl.style.backgroundImage = '';
+    bgEl.style.display = 'none';
+    canvas.classList.remove('has-bg');
+  }
 
   await api('admin/updatePage', {
     page_id: pg.id, chapter_id: pg._chapterId, title, content_type: 'rich_text',
-    content: { html }, video_url: videoUrl, video_required: videoReq, background_image: bgImage
+    content: { html, bg_opacity: bgOpacity }, video_url: videoUrl, video_required: videoReq, background_image: bgImage
   });
 
   seRenderSidebar();
@@ -587,6 +604,11 @@ async function seInsertImage(input) {
 function seClearFormat() {
   document.execCommand('removeFormat');
   document.getElementById('se_content').focus();
+}
+
+function seUpdateBgOpacity(val) {
+  document.getElementById('se_bg_opacity_label').textContent = val + '%';
+  document.getElementById('se_canvas_bg').style.opacity = val / 100;
 }
 
 // ─── Background Upload ────────────────────────────────────────────────────
