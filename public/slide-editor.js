@@ -131,10 +131,11 @@ function seRenderSidebar() {
       const idx = SE.flatPages.findIndex(fp => fp.id === pg.id);
       const isActive = idx === SE.currentIdx;
       slideNum++;
+      const thumbBg = pg.background_image ? `background-image:url('${pg.background_image}')` : '';
       html += `
         <div class="se-thumb ${isActive ? 'active' : ''}" onclick="seLoadSlide(${idx})"
              draggable="true" data-page-id="${pg.id}" data-chapter-id="${ch.id}" data-idx="${idx}"
-             title="${esc(pg.title || 'Untitled')}">
+             title="${esc(pg.title || 'Untitled')}" style="${thumbBg}">
           ${pg.video_url ? '<span class="se-thumb-vid">&#127909;</span>' : ''}
           <div class="se-thumb-label">${esc(pg.title || 'Untitled')}</div>
         </div>`;
@@ -296,10 +297,18 @@ function seLoadSlide(idx) {
     const vbar = document.getElementById('se_video_bar');
     if (pg.video_url) {
       vbar.classList.add('has-video');
-      document.getElementById('se_video_label').textContent = pg.video_url;
+      // Try to show YouTube thumbnail
+      const ytId = seGetYouTubeId(pg.video_url);
+      if (ytId) {
+        document.getElementById('se_video_label').innerHTML =
+          `<img src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" style="height:48px;border-radius:4px;margin-right:8px;vertical-align:middle">` +
+          `<span style="vertical-align:middle">${esc(pg.video_url)}</span>`;
+      } else {
+        document.getElementById('se_video_label').textContent = pg.video_url;
+      }
     } else {
       vbar.classList.remove('has-video');
-      document.getElementById('se_video_label').textContent = 'Click to add video (YouTube / Google Drive)';
+      document.getElementById('se_video_label').innerHTML = 'Click to add video (YouTube / Google Drive)';
     }
 
     const bgEl = document.getElementById('se_canvas_bg');
@@ -603,6 +612,12 @@ async function seInsertImage(input) {
 function seClearFormat() {
   document.execCommand('removeFormat');
   document.getElementById('se_content').focus();
+}
+
+function seGetYouTubeId(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/]+)/);
+  return m ? m[1] : null;
 }
 
 function seUpdateBgOpacity(val) {

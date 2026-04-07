@@ -314,8 +314,7 @@ function renderViewer() {
 
   renderSlide(currentPage);
 
-  document.getElementById('viewer_nav_info').textContent =
-    `Page ${STATE.viewerPageIndex + 1} of ${totalPages}`;
+  document.getElementById('viewer_nav_info').textContent = '';
 
   document.getElementById('btn_prev').style.display = STATE.viewerPageIndex > 0 ? '' : 'none';
 

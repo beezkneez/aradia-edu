@@ -1045,6 +1045,7 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 
 .se-thumb {
   width: 100%; aspect-ratio: 16/10; background: var(--surface);
+  background-size: cover; background-position: center;
   border: 2px solid transparent; border-radius: 6px;
   margin-bottom: 5px; cursor: pointer; overflow: hidden;
   position: relative; transition: all 0.15s ease;
@@ -1097,7 +1098,7 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
   font-size: 12px; color: var(--text3);
 }
 .se-video-bar:hover { border-color: var(--accent); background: var(--accent-bg); }
-.se-video-bar.has-video { border-style: solid; border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.se-video-bar.has-video { border-style: solid; border-color: var(--accent); background: var(--accent-bg); color: var(--accent); min-height: 56px; }
 
 .se-content {
   flex: 1; padding: 8px 28px 24px; outline: none; overflow-y: auto;
