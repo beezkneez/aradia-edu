@@ -816,18 +816,35 @@ async function executeImportSplit() {
       if (usePdfJs && pdfDoc) {
         try {
           const page = await pdfDoc.getPage(p);
-          const viewport = page.getViewport({ scale: 2 });
+          // Cap scale so canvas doesn't exceed browser limits (~16k px)
+          let scale = 2;
+          const testVp = page.getViewport({ scale: 1 });
+          if (testVp.width * 2 > 8000 || testVp.height * 2 > 8000) scale = 1;
+          const viewport = page.getViewport({ scale });
+
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width;
           canvas.height = viewport.height;
           const ctx = canvas.getContext('2d');
+
+          // Fill white background first (PDFs can have transparent backgrounds)
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
           await page.render({ canvasContext: ctx, viewport }).promise;
 
+          // Small delay to ensure render is fully flushed
+          await new Promise(r => setTimeout(r, 50));
+
           // Convert to blob and upload
-          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.88));
-          const file = new File([blob], `page-${p}.jpg`, { type: 'image/jpeg' });
-          const uploadR = await apiUpload('backgrounds', file);
-          if (uploadR.ok) bgImage = uploadR.filePath;
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+          if (blob && blob.size > 1000) {
+            const file = new File([blob], `page-${p}.jpg`, { type: 'image/jpeg' });
+            const uploadR = await apiUpload('backgrounds', file);
+            if (uploadR.ok) bgImage = uploadR.filePath;
+          } else {
+            console.warn(`Page ${p}: blob too small (${blob?.size || 0} bytes), skipping PDF.js render`);
+          }
         } catch(e) {
           console.error(`PDF.js render error for page ${p}:`, e);
         }
