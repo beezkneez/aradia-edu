@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = process.env.PORT || 3400;
@@ -38,13 +39,29 @@ const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 
 async function getAuthorizedUser(email, pin) {
   try {
     const r = await pool.query(
-      `SELECT id, email, name, type, username, is_active, profile_pic, preferred_theme,
+      `SELECT id, email, name, type, username, is_active, profile_pic, preferred_theme, pin,
               COALESCE(admin_permissions, '{}') as admin_permissions
-       FROM users WHERE (LOWER(email)=LOWER($1) OR LOWER(username)=LOWER($1)) AND pin=$2 AND is_active=TRUE`,
-      [email, pin]
+       FROM users WHERE (LOWER(email)=LOWER($1) OR LOWER(username)=LOWER($1)) AND is_active=TRUE`,
+      [email]
     );
     if (r.rows.length === 0) return null;
     const u = r.rows[0];
+    const pinStr = String(pin || '').trim();
+    const storedPin = u.pin || '';
+    // Support both bcrypt hashed and plain text PINs (transitional).
+    // On a successful plaintext match, auto-migrate to bcrypt.
+    if (storedPin.startsWith('$2b$') || storedPin.startsWith('$2a$')) {
+      const match = await bcrypt.compare(pinStr, storedPin);
+      if (!match) return null;
+    } else {
+      if (storedPin !== pinStr) return null;
+      try {
+        const hashed = await bcrypt.hash(storedPin, 10);
+        await pool.query(`UPDATE users SET pin=$1 WHERE id=$2`, [hashed, u.id]);
+      } catch (e) {
+        console.warn(`[AUTH] Failed to auto-hash plaintext PIN for ${u.email}: ${e.message}`);
+      }
+    }
     return {
       id: u.id, email: u.email, name: u.name, type: u.type,
       username: u.username, profile_pic: u.profile_pic,
