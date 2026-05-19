@@ -778,7 +778,9 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 .manual-notes textarea::placeholder { color: var(--text3); }
 .manual-notes-fab {
   display: none;
-  position: absolute; right: 16px; bottom: 16px; z-index: 5;
+  position: fixed; right: 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 15;
   width: 56px; height: 56px; border-radius: 50%; border: none;
   background: var(--accent, #4a9eff); color: #fff; cursor: pointer;
   font-size: 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);
