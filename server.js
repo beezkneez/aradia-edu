@@ -40,7 +40,8 @@ async function getAuthorizedUser(email, pin) {
   try {
     const r = await pool.query(
       `SELECT id, email, name, type, username, is_active, profile_pic, preferred_theme, pin,
-              is_superuser, COALESCE(admin_permissions, '{}') as admin_permissions
+              is_superuser, COALESCE(teaches, '') as teaches,
+              COALESCE(admin_permissions, '{}') as admin_permissions
        FROM users WHERE (LOWER(email)=LOWER($1) OR LOWER(username)=LOWER($1)) AND is_active=TRUE`,
       [email]
     );
@@ -68,6 +69,7 @@ async function getAuthorizedUser(email, pin) {
       preferred_theme: u.preferred_theme,
       isAdmin: u.is_superuser === true || u.type === 'admin' || u.username === 'admin',
       isModerator: u.type === 'moderator',
+      teaches: u.teaches,
       admin_permissions: u.admin_permissions
     };
   } catch (e) { console.error('Auth error:', e); return null; }
@@ -171,6 +173,16 @@ async function initDB() {
         user_email TEXT NOT NULL,
         manual_id INT REFERENCES edu_manuals(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_email, manual_id)
+      );
+
+      -- Per-user notes on a manual (private; never shown to other users)
+      CREATE TABLE IF NOT EXISTS edu_manual_notes (
+        id SERIAL PRIMARY KEY,
+        user_email TEXT NOT NULL,
+        manual_id INT REFERENCES edu_manuals(id) ON DELETE CASCADE,
+        notes TEXT DEFAULT '',
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(user_email, manual_id)
       );
     `);
@@ -633,9 +645,25 @@ app.post('/api/getManuals', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
 
-  const manuals = await pool.query(
+  const allManuals = await pool.query(
     'SELECT * FROM edu_manuals ORDER BY category, sort_order, title'
   );
+
+  // Filter by what the user teaches. Admins/mods see everything.
+  // "Routines" is treated as universal — visible to all logged-in users.
+  let manuals;
+  if (isAdminOrMod(user)) {
+    manuals = allManuals.rows;
+  } else {
+    const teaches = new Set(
+      String(user.teaches || '').toLowerCase()
+        .split(',').map(s => s.trim()).filter(Boolean)
+    );
+    manuals = allManuals.rows.filter(m => {
+      const cat = String(m.category || '').toLowerCase();
+      return cat === 'routines' || teaches.has(cat);
+    });
+  }
 
   const favorites = await pool.query(
     'SELECT manual_id FROM edu_manual_favorites WHERE LOWER(user_email)=LOWER($1)',
@@ -643,11 +671,36 @@ app.post('/api/getManuals', async (req, res) => {
   );
   const favSet = new Set(favorites.rows.map(f => f.manual_id));
 
-  for (const m of manuals.rows) {
+  for (const m of manuals) {
     m.is_favorite = favSet.has(m.id);
   }
 
-  res.json({ ok: true, manuals: manuals.rows });
+  res.json({ ok: true, manuals });
+});
+
+// Get the current user's private note for a manual
+app.post('/api/getManualNote', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  const r = await pool.query(
+    'SELECT notes FROM edu_manual_notes WHERE LOWER(user_email)=LOWER($1) AND manual_id=$2',
+    [user.email, req.body.manual_id]
+  );
+  res.json({ ok: true, notes: r.rows[0]?.notes || '' });
+});
+
+// Save (upsert) the current user's private note for a manual
+app.post('/api/saveManualNote', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  const notes = String(req.body.notes || '');
+  await pool.query(
+    `INSERT INTO edu_manual_notes (user_email, manual_id, notes, updated_at)
+     VALUES (LOWER($1), $2, $3, NOW())
+     ON CONFLICT (user_email, manual_id) DO UPDATE SET notes=$3, updated_at=NOW()`,
+    [user.email, req.body.manual_id, notes]
+  );
+  res.json({ ok: true });
 });
 
 app.post('/api/toggleManualFavorite', async (req, res) => {

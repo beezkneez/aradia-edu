@@ -646,19 +646,56 @@ function selectManual(id) {
   if (!manual) return;
 
   const viewer = document.getElementById('manuals_viewer');
-  if (manual.file_type === 'pdf') {
-    viewer.innerHTML = `<iframe class="manual-frame" src="${manual.file_path}"></iframe>`;
-  } else {
-    viewer.innerHTML = `
-      <div style="padding:40px;text-align:center;color:var(--text2)">
-        <div style="font-size:48px;margin-bottom:16px">&#128196;</div>
-        <p>${esc(manual.title)}</p>
-        <a href="${manual.file_path}" download class="btn-primary" style="display:inline-block;margin-top:16px">
-          Download File
-        </a>
-      </div>`;
-  }
+  const pdfPane = manual.file_type === 'pdf'
+    ? `<iframe class="manual-frame" src="${manual.file_path}"></iframe>`
+    : `<div style="padding:40px;text-align:center;color:var(--text2)">
+         <div style="font-size:48px;margin-bottom:16px">&#128196;</div>
+         <p>${esc(manual.title)}</p>
+         <a href="${manual.file_path}" download class="btn-primary" style="display:inline-block;margin-top:16px">
+           Download File
+         </a>
+       </div>`;
+
+  viewer.innerHTML = `
+    <div class="manual-pane">${pdfPane}</div>
+    <aside class="manual-notes">
+      <div class="manual-notes-header">
+        <span>My Notes</span>
+        <span class="manual-notes-status" id="manual_notes_status"></span>
+      </div>
+      <textarea id="manual_notes_textarea"
+        placeholder="Private notes for this manual — only you see these.&#10;Auto-saves when you click away."
+        onblur="saveManualNote(${manual.id})"></textarea>
+    </aside>`;
+
+  loadManualNote(manual.id);
   renderManualsList();
+}
+
+async function loadManualNote(manual_id) {
+  const ta = document.getElementById('manual_notes_textarea');
+  if (!ta) return;
+  ta.value = '';
+  ta.disabled = true;
+  const r = await api('getManualNote', { manual_id });
+  ta.disabled = false;
+  if (r.ok) ta.value = r.notes || '';
+}
+
+async function saveManualNote(manual_id) {
+  const ta = document.getElementById('manual_notes_textarea');
+  const status = document.getElementById('manual_notes_status');
+  if (!ta) return;
+  const notes = ta.value;
+  if (status) status.textContent = 'Saving…';
+  const r = await api('saveManualNote', { manual_id, notes });
+  if (!status) return;
+  if (r.ok) {
+    status.textContent = 'Saved';
+    setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+  } else {
+    status.textContent = 'Save failed';
+  }
 }
 
 async function toggleFavorite(id) {
