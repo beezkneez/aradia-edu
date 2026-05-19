@@ -658,18 +658,32 @@ function selectManual(id) {
 
   viewer.innerHTML = `
     <div class="manual-pane">${pdfPane}</div>
-    <aside class="manual-notes">
+    <aside class="manual-notes" id="manual_notes_panel">
       <div class="manual-notes-header">
         <span>My Notes</span>
         <span class="manual-notes-status" id="manual_notes_status"></span>
+        <button class="manual-notes-close" onclick="toggleManualNotes(false)" aria-label="Close notes">&times;</button>
       </div>
       <textarea id="manual_notes_textarea"
         placeholder="Private notes for this manual — only you see these.&#10;Auto-saves when you click away."
         onblur="saveManualNote(${manual.id})"></textarea>
-    </aside>`;
+    </aside>
+    <button class="manual-notes-fab" onclick="toggleManualNotes(true)" aria-label="Open notes">
+      &#128221;
+    </button>`;
 
   loadManualNote(manual.id);
   renderManualsList();
+}
+
+function toggleManualNotes(open) {
+  const panel = document.getElementById('manual_notes_panel');
+  if (!panel) return;
+  panel.classList.toggle('open', open);
+  if (open) {
+    const ta = document.getElementById('manual_notes_textarea');
+    if (ta) setTimeout(() => ta.focus(), 200);
+  }
 }
 
 async function loadManualNote(manual_id) {
