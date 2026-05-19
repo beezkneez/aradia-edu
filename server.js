@@ -703,11 +703,56 @@ app.post('/api/admin/deleteManual', async (req, res) => {
 
   const manual = await pool.query('SELECT file_path FROM edu_manuals WHERE id=$1', [req.body.manual_id]);
   if (manual.rows.length > 0) {
-    const fullPath = path.join(__dirname, 'public', manual.rows[0].file_path);
-    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    const fp = manual.rows[0].file_path || '';
+    // Only delete local files; skip remote URLs (e.g. Google Drive embeds).
+    if (!/^https?:\/\//i.test(fp)) {
+      const fullPath = path.join(__dirname, 'public', fp);
+      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    }
   }
   await pool.query('DELETE FROM edu_manuals WHERE id=$1', [req.body.manual_id]);
   res.json({ ok: true });
+});
+
+// ─── Admin: One-shot bulk import from Google Drive ──────────────────────────
+// Idempotent — skips manuals whose file_path already exists.
+// To add more PDFs later: append to DRIVE_MANUALS_IMPORT and POST this endpoint.
+const DRIVE_MANUALS_IMPORT = [
+  // Pole
+  { title: 'Pole 101 2022 Manual',         category: 'Pole',        drive_id: '12JmK6Z2ULK_hRO3NdJLUNBgVqQAxS8MT', sort_order: 1 },
+  { title: 'Beginner Manual 2022',         category: 'Pole',        drive_id: '1rBxZc0P5Pl4vphbNpf041kmfwLrx6-pY', sort_order: 2 },
+  { title: 'Intermediate 2022',            category: 'Pole',        drive_id: '11q0Cmo59qgs3VzInuxq5-KNxx5sn3SiH', sort_order: 3 },
+  { title: 'Advanced 1 and 2',             category: 'Pole',        drive_id: '1XIqCtGgN-A0inU0uehvspg1CaoQ3mU6J', sort_order: 4 },
+  { title: 'Pole Party Manual',            category: 'Pole',        drive_id: '1lUO1aZ3-OnhyjbIDFtTDXsEhpLwGeBGP', sort_order: 5 },
+  // Aerial Hoop
+  { title: 'Aerial Hoop Manual Level 1+2', category: 'Aerial Hoop', drive_id: '1V1ifhqQSDIsd_SZ7uGPpWrPP_JMcn_Hb', sort_order: 1 },
+  { title: 'Aerial Hoop Manual Level 3+4', category: 'Aerial Hoop', drive_id: '15TJFBj_RAsQHueWrBYe5NOkUbYUH3V9e', sort_order: 2 },
+  { title: 'Aerial Hoop Manual Level 5',   category: 'Aerial Hoop', drive_id: '1SFJUIwEOxjDHDF9F2DeeonApjZmTSXM1', sort_order: 3 },
+  // Routines
+  { title: 'Aradia Chair Routine',         category: 'Routines',    drive_id: '1jg2pm7CPrU_tDX7UnjMeHn59wwxz9NDh', sort_order: 1 },
+];
+
+app.post('/api/admin/importDriveManuals', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+
+  const inserted = [];
+  const skipped = [];
+  for (const m of DRIVE_MANUALS_IMPORT) {
+    const file_path = `https://drive.google.com/file/d/${m.drive_id}/preview`;
+    const existing = await pool.query('SELECT id FROM edu_manuals WHERE file_path=$1', [file_path]);
+    if (existing.rows.length > 0) {
+      skipped.push({ title: m.title, reason: 'already imported' });
+      continue;
+    }
+    const r = await pool.query(
+      `INSERT INTO edu_manuals (title, description, category, file_path, file_type, uploaded_by, sort_order)
+       VALUES ($1,'',$2,$3,'pdf',$4,$5) RETURNING id`,
+      [m.title, m.category, file_path, user.email, m.sort_order]
+    );
+    inserted.push({ id: r.rows[0].id, title: m.title, category: m.category });
+  }
+  res.json({ ok: true, inserted, skipped, totals: { inserted: inserted.length, skipped: skipped.length } });
 });
 
 // ─── Catch-all: serve SPA ───────────────────────────────────────────────────
