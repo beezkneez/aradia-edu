@@ -40,7 +40,7 @@ async function getAuthorizedUser(email, pin) {
   try {
     const r = await pool.query(
       `SELECT id, email, name, type, username, is_active, profile_pic, preferred_theme, pin,
-              COALESCE(admin_permissions, '{}') as admin_permissions
+              is_superuser, COALESCE(admin_permissions, '{}') as admin_permissions
        FROM users WHERE (LOWER(email)=LOWER($1) OR LOWER(username)=LOWER($1)) AND is_active=TRUE`,
       [email]
     );
@@ -66,7 +66,7 @@ async function getAuthorizedUser(email, pin) {
       id: u.id, email: u.email, name: u.name, type: u.type,
       username: u.username, profile_pic: u.profile_pic,
       preferred_theme: u.preferred_theme,
-      isAdmin: u.type === 'admin' || u.username === 'admin',
+      isAdmin: u.is_superuser === true || u.type === 'admin' || u.username === 'admin',
       isModerator: u.type === 'moderator',
       admin_permissions: u.admin_permissions
     };
