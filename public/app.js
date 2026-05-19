@@ -156,6 +156,12 @@ async function go(page, openId) {
     document.querySelector('.app-header').style.display = '';
   }
 
+  // Stop video playback when leaving the videos page so audio doesn't bleed
+  // into other tabs (Drive iframes can't be paused from outside).
+  if (STATE.currentPage === 'videos' && page !== 'videos' && STATE.selectedVideo) {
+    closeVideo();
+  }
+
   STATE.currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
