@@ -38,6 +38,7 @@
     <nav class="header-nav">
       <button data-nav="modules" onclick="go('modules')">Modules</button>
       <button data-nav="manuals" onclick="go('manuals')">Manuals</button>
+      <button data-nav="videos" onclick="go('videos')">Videos</button>
       <button data-nav="admin" id="nav_admin" style="display:none" onclick="go('admin')">Admin</button>
     </nav>
     <div class="header-right">
@@ -118,11 +119,33 @@
       </div>
     </div>
 
+    <!-- ═══ VIDEOS ═════════════════════════════════════════════════════ -->
+    <div id="page_videos" class="page">
+      <aside class="manuals-sidebar">
+        <div class="manuals-sidebar-header">
+          <h3>Training Videos</h3>
+          <div class="search-wrap">
+            <span class="search-icon">&#128269;</span>
+            <input class="manuals-search" id="videos_search" placeholder="Search videos..." oninput="filterVideos()">
+          </div>
+          <div class="manuals-filter" id="videos_filter"></div>
+        </div>
+        <div class="manuals-list" id="videos_list"></div>
+      </aside>
+      <div class="manuals-viewer" id="videos_viewer">
+        <div class="manuals-viewer-empty">
+          <div class="empty-icon">&#127909;</div>
+          <p>Select a video to play</p>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ ADMIN ══════════════════════════════════════════════════════ -->
     <div id="page_admin" class="page">
       <div class="admin-tabs">
         <button class="admin-tab-btn active" data-tab="builder" onclick="switchAdminTab('builder')">Module Builder</button>
-        <button class="admin-tab-btn" data-tab="manuals" onclick="switchAdminTab('manuals')">Upload Manuals</button>
+        <button class="admin-tab-btn" data-tab="manuals" onclick="switchAdminTab('manuals')">Manuals</button>
+        <button class="admin-tab-btn" data-tab="videos" onclick="switchAdminTab('videos')">Videos</button>
         <button class="admin-tab-btn" data-tab="progress" onclick="switchAdminTab('progress')">Staff Progress</button>
         <button class="admin-tab-btn" data-tab="assignments" onclick="switchAdminTab('assignments')">Assignments</button>
       </div>
@@ -160,6 +183,17 @@
             &#128279; Add from Google Drive link
           </button>
           <div class="admin-module-list" id="admin_manuals_list" style="margin-top:24px"></div>
+        </div>
+
+        <!-- Videos Panel -->
+        <div id="admin_videos" class="admin-panel">
+          <div class="admin-section-header">
+            <h3>Videos Library</h3>
+          </div>
+          <button class="btn-secondary" style="width:100%" onclick="addDriveVideoModal()">
+            &#128279; Add from Google Drive link
+          </button>
+          <div class="admin-module-list" id="admin_videos_list" style="margin-top:24px"></div>
         </div>
 
         <!-- Progress Panel -->

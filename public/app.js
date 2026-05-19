@@ -13,6 +13,9 @@ const STATE = {
   manuals: [],
   manualsFilter: 'all',
   selectedManual: null,
+  videos: [],
+  videosFilter: 'all',
+  selectedVideo: null,
   adminModules: [],
   editingModule: null,
   staffList: [],
@@ -166,6 +169,10 @@ function go(page) {
     document.getElementById('page_manuals').classList.add('active');
     document.querySelector('[data-nav="manuals"]').classList.add('active');
     loadManuals();
+  } else if (page === 'videos') {
+    document.getElementById('page_videos').classList.add('active');
+    document.querySelector('[data-nav="videos"]').classList.add('active');
+    loadVideos();
   } else if (page === 'admin') {
     document.getElementById('page_admin').classList.add('active');
     document.querySelector('[data-nav="admin"]').classList.add('active');
@@ -736,6 +743,149 @@ async function toggleFavorite(id) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   VIDEOS (parallel to manuals — Drive-hosted)
+   ═══════════════════════════════════════════════════════════════════════════ */
+async function loadVideos() {
+  const r = await api('getVideos');
+  if (!r.ok) return;
+  STATE.videos = r.videos;
+  renderVideoFilters();
+  renderVideosList();
+}
+
+function renderVideoFilters() {
+  const categories = ['All', ...new Set(STATE.videos.map(v => v.category))];
+  const el = document.getElementById('videos_filter');
+  el.innerHTML = categories.map(c => {
+    const key = c.toLowerCase();
+    return `<button class="filter-btn ${STATE.videosFilter === key ? 'active' : ''}"
+      onclick="setVideoFilter('${key}')">${c}</button>`;
+  }).join('');
+}
+
+function setVideoFilter(filter) {
+  STATE.videosFilter = filter;
+  renderVideoFilters();
+  renderVideosList();
+}
+
+function filterVideos() { renderVideosList(); }
+
+function renderVideosList() {
+  const search = (document.getElementById('videos_search').value || '').toLowerCase();
+  let filtered = STATE.videos;
+  if (STATE.videosFilter !== 'all') filtered = filtered.filter(v => v.category.toLowerCase() === STATE.videosFilter);
+  if (search) filtered = filtered.filter(v =>
+    v.title.toLowerCase().includes(search) || (v.description || '').toLowerCase().includes(search)
+  );
+
+  const el = document.getElementById('videos_list');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>No videos found</p></div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(v => `
+    <div class="manual-item ${STATE.selectedVideo === v.id ? 'active' : ''}" onclick="selectVideo(${v.id})">
+      <div class="manual-icon">&#127909;</div>
+      <div class="manual-info">
+        <div class="manual-title">${esc(v.title)}</div>
+        <div class="manual-category">${esc(v.category)}</div>
+      </div>
+      <button class="manual-fav ${v.is_favorite ? 'favorited' : ''}" onclick="event.stopPropagation();toggleVideoFav(${v.id})">
+        &#9733;
+      </button>
+    </div>`).join('');
+}
+
+function selectVideo(id) {
+  STATE.selectedVideo = id;
+  const video = STATE.videos.find(v => v.id === id);
+  if (!video) return;
+
+  const viewer = document.getElementById('videos_viewer');
+  const playerPane = `<iframe class="manual-frame" src="${video.file_path}" allow="autoplay" allowfullscreen></iframe>`;
+
+  viewer.innerHTML = `
+    <button class="manual-back-btn" onclick="closeVideo()" aria-label="Back to list">&larr;</button>
+    <div class="manual-pane">${playerPane}</div>
+    <aside class="manual-notes" id="video_notes_panel">
+      <div class="manual-notes-header">
+        <span>My Notes</span>
+        <span class="manual-notes-status" id="video_notes_status"></span>
+        <button class="manual-notes-close" onclick="toggleVideoNotes(false)" aria-label="Close notes">&times;</button>
+      </div>
+      <textarea id="video_notes_textarea"
+        placeholder="Private notes for this video — only you see these.&#10;Auto-saves when you click away."
+        onblur="saveVideoNote(${video.id})"></textarea>
+    </aside>
+    <button class="manual-notes-fab" onclick="toggleVideoNotes(true)" aria-label="Open notes">
+      &#128221;
+    </button>`;
+
+  document.getElementById('page_videos').classList.add('viewing-manual');
+  loadVideoNote(video.id);
+  renderVideosList();
+}
+
+function closeVideo() {
+  STATE.selectedVideo = null;
+  document.getElementById('page_videos').classList.remove('viewing-manual');
+  const viewer = document.getElementById('videos_viewer');
+  viewer.innerHTML = `
+    <div class="manuals-viewer-empty">
+      <div class="empty-icon">&#127909;</div>
+      <p>Select a video to play</p>
+    </div>`;
+  renderVideosList();
+}
+
+function toggleVideoNotes(open) {
+  const panel = document.getElementById('video_notes_panel');
+  if (!panel) return;
+  panel.classList.toggle('open', open);
+  if (open) {
+    const ta = document.getElementById('video_notes_textarea');
+    if (ta) setTimeout(() => ta.focus(), 200);
+  }
+}
+
+async function loadVideoNote(video_id) {
+  const ta = document.getElementById('video_notes_textarea');
+  if (!ta) return;
+  ta.value = '';
+  ta.disabled = true;
+  const r = await api('getVideoNote', { video_id });
+  ta.disabled = false;
+  if (r.ok) ta.value = r.notes || '';
+}
+
+async function saveVideoNote(video_id) {
+  const ta = document.getElementById('video_notes_textarea');
+  const status = document.getElementById('video_notes_status');
+  if (!ta) return;
+  const notes = ta.value;
+  if (status) status.textContent = 'Saving…';
+  const r = await api('saveVideoNote', { video_id, notes });
+  if (!status) return;
+  if (r.ok) {
+    status.textContent = 'Saved';
+    setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+  } else {
+    status.textContent = 'Save failed';
+  }
+}
+
+async function toggleVideoFav(id) {
+  const r = await api('toggleVideoFavorite', { video_id: id });
+  if (r.ok) {
+    const video = STATE.videos.find(v => v.id === id);
+    if (video) video.is_favorite = r.favorited;
+    renderVideosList();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    ADMIN
    ═══════════════════════════════════════════════════════════════════════════ */
 function switchAdminTab(tab) {
@@ -746,6 +896,7 @@ function switchAdminTab(tab) {
 
   if (tab === 'progress' || tab === 'assignments') populateModuleSelects();
   if (tab === 'manuals') loadAdminManuals();
+  if (tab === 'videos') loadAdminVideos();
 }
 
 async function loadAdminData() {
@@ -1363,6 +1514,124 @@ async function saveDriveManual() {
   } else {
     toast(r.reason || 'Failed to add manual', 'error');
   }
+}
+
+/* ─── Admin: Videos ─── */
+async function loadAdminVideos() {
+  const r = await api('getVideos');
+  if (!r.ok) return;
+
+  const el = document.getElementById('admin_videos_list');
+  if (r.videos.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>No videos added yet</p></div>';
+    return;
+  }
+
+  el.innerHTML = r.videos.map(v => `
+    <div class="admin-module-row">
+      <div class="admin-module-info">
+        <div class="admin-module-name">${esc(v.title)}</div>
+        <div class="admin-module-meta">${esc(v.category)}</div>
+      </div>
+      <div class="admin-module-actions">
+        <button class="btn-secondary" onclick="editVideoModal(${v.id}, '${esc(v.title)}', '${esc(v.description || '')}', '${esc(v.category)}')">Edit</button>
+        <button class="btn-danger" onclick="deleteVideo(${v.id})">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function addDriveVideoModal() {
+  const cats = [...new Set((STATE.videos || []).map(v => v.category).filter(Boolean))];
+  const catOptions = cats.map(c => `<option value="${esc(c)}">`).join('');
+
+  showModal(`
+    <h3>Add Video from Google Drive</h3>
+    <div class="form-group">
+      <label class="form-label">Google Drive link</label>
+      <input class="form-input" id="dv_url" placeholder="https://drive.google.com/file/d/.../view">
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        Video must be shared as "Anyone with the link can view"
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="dv_title" placeholder="e.g. Aerial Hoop Beat Drop">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <input class="form-input" id="dv_category" list="dv_cat_list" placeholder="e.g. Pole 101, Aerial Hoop Level 1">
+      <datalist id="dv_cat_list">${catOptions}</datalist>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea class="form-input" id="dv_description" placeholder="Brief description..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveDriveVideo()">Save</button>
+    </div>
+  `);
+}
+
+async function saveDriveVideo() {
+  const url = document.getElementById('dv_url').value;
+  const title = document.getElementById('dv_title').value.trim();
+  const category = document.getElementById('dv_category').value.trim() || 'General';
+  const description = document.getElementById('dv_description').value.trim();
+
+  const fileId = extractDriveFileId(url);
+  if (!fileId) return toast('That doesn\'t look like a Google Drive link', 'error');
+  if (!title) return toast('Please enter a title', 'error');
+
+  const file_path = `https://drive.google.com/file/d/${fileId}/preview`;
+  const r = await api('admin/createVideo', {
+    title, description, category, file_path, file_type: 'drive_video'
+  });
+  if (r.ok) {
+    hideModal();
+    toast('Video added from Drive', 'success');
+    loadAdminVideos();
+  } else {
+    toast(r.reason || 'Failed to add video', 'error');
+  }
+}
+
+function editVideoModal(id, title, desc, category) {
+  showModal(`
+    <h3>Edit Video</h3>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="edit_video_title" value="${title}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <input class="form-input" id="edit_video_category" value="${category}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="edit_video_desc">${desc}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="updateVideo(${id})">Save</button>
+    </div>
+  `);
+}
+
+async function updateVideo(id) {
+  await api('admin/updateVideo', {
+    video_id: id,
+    title: document.getElementById('edit_video_title').value.trim(),
+    description: document.getElementById('edit_video_desc').value.trim(),
+    category: document.getElementById('edit_video_category').value.trim()
+  });
+  hideModal(); toast('Video updated', 'success'); loadAdminVideos();
+}
+
+async function deleteVideo(id) {
+  if (!confirm('Delete this video?')) return;
+  const r = await api('admin/deleteVideo', { video_id: id });
+  if (r.ok) { toast('Video deleted', 'success'); loadAdminVideos(); }
 }
 
 async function loadProgress() {

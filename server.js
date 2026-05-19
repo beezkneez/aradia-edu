@@ -79,6 +79,22 @@ function isAdminOrMod(user) {
   return user && (user.isAdmin || user.isModerator);
 }
 
+// Decide whether a resource category is visible to a non-admin user
+// based on their comma-separated `teaches` string. "Routines" is universal.
+// Matches by substring either way: teach "pole" matches "Pole 101"; teach
+// "aerial hoop" matches "Aerial Hoop Level 1".
+function categoryVisibleTo(category, teachesStr) {
+  const cat = String(category || '').toLowerCase().trim();
+  if (!cat) return false;
+  if (cat === 'routines') return true;
+  const teaches = String(teachesStr || '').toLowerCase()
+    .split(',').map(s => s.trim()).filter(Boolean);
+  for (const t of teaches) {
+    if (cat.includes(t) || t.includes(cat)) return true;
+  }
+  return false;
+}
+
 // ─── Database initialization ────────────────────────────────────────────────
 async function initDB() {
   const client = await pool.connect();
@@ -184,6 +200,36 @@ async function initDB() {
         notes TEXT DEFAULT '',
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(user_email, manual_id)
+      );
+
+      -- Videos library (Drive-hosted)
+      CREATE TABLE IF NOT EXISTS edu_videos (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        category TEXT DEFAULT 'General',
+        file_path TEXT NOT NULL,
+        file_type TEXT DEFAULT 'drive_video',
+        uploaded_by TEXT NOT NULL,
+        uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+        sort_order INT DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS edu_video_favorites (
+        id SERIAL PRIMARY KEY,
+        user_email TEXT NOT NULL,
+        video_id INT REFERENCES edu_videos(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_email, video_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS edu_video_notes (
+        id SERIAL PRIMARY KEY,
+        user_email TEXT NOT NULL,
+        video_id INT REFERENCES edu_videos(id) ON DELETE CASCADE,
+        notes TEXT DEFAULT '',
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_email, video_id)
       );
     `);
     console.log('EDU tables initialized');
@@ -650,20 +696,10 @@ app.post('/api/getManuals', async (req, res) => {
   );
 
   // Filter by what the user teaches. Admins/mods see everything.
-  // "Routines" is treated as universal — visible to all logged-in users.
-  let manuals;
-  if (isAdminOrMod(user)) {
-    manuals = allManuals.rows;
-  } else {
-    const teaches = new Set(
-      String(user.teaches || '').toLowerCase()
-        .split(',').map(s => s.trim()).filter(Boolean)
-    );
-    manuals = allManuals.rows.filter(m => {
-      const cat = String(m.category || '').toLowerCase();
-      return cat === 'routines' || teaches.has(cat);
-    });
-  }
+  // See categoryVisibleTo() for the matching rules.
+  const manuals = isAdminOrMod(user)
+    ? allManuals.rows
+    : allManuals.rows.filter(m => categoryVisibleTo(m.category, user.teaches));
 
   const favorites = await pool.query(
     'SELECT manual_id FROM edu_manual_favorites WHERE LOWER(user_email)=LOWER($1)',
@@ -723,6 +759,104 @@ app.post('/api/toggleManualFavorite', async (req, res) => {
     );
     res.json({ ok: true, favorited: true });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VIDEOS API (parallel to manuals — Drive-hosted videos)
+// ═══════════════════════════════════════════════════════════════════════════
+app.post('/api/getVideos', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+
+  const all = await pool.query(
+    'SELECT * FROM edu_videos ORDER BY category, sort_order, title'
+  );
+  const videos = isAdminOrMod(user)
+    ? all.rows
+    : all.rows.filter(v => categoryVisibleTo(v.category, user.teaches));
+
+  const favorites = await pool.query(
+    'SELECT video_id FROM edu_video_favorites WHERE LOWER(user_email)=LOWER($1)',
+    [user.email]
+  );
+  const favSet = new Set(favorites.rows.map(f => f.video_id));
+  for (const v of videos) v.is_favorite = favSet.has(v.id);
+
+  res.json({ ok: true, videos });
+});
+
+app.post('/api/toggleVideoFavorite', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+
+  const { video_id } = req.body;
+  const existing = await pool.query(
+    'SELECT id FROM edu_video_favorites WHERE LOWER(user_email)=LOWER($1) AND video_id=$2',
+    [user.email, video_id]
+  );
+  if (existing.rows.length > 0) {
+    await pool.query('DELETE FROM edu_video_favorites WHERE id=$1', [existing.rows[0].id]);
+    res.json({ ok: true, favorited: false });
+  } else {
+    await pool.query(
+      'INSERT INTO edu_video_favorites (user_email, video_id) VALUES (LOWER($1), $2)',
+      [user.email, video_id]
+    );
+    res.json({ ok: true, favorited: true });
+  }
+});
+
+app.post('/api/getVideoNote', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  const r = await pool.query(
+    'SELECT notes FROM edu_video_notes WHERE LOWER(user_email)=LOWER($1) AND video_id=$2',
+    [user.email, req.body.video_id]
+  );
+  res.json({ ok: true, notes: r.rows[0]?.notes || '' });
+});
+
+app.post('/api/saveVideoNote', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  const notes = String(req.body.notes || '');
+  await pool.query(
+    `INSERT INTO edu_video_notes (user_email, video_id, notes, updated_at)
+     VALUES (LOWER($1), $2, $3, NOW())
+     ON CONFLICT (user_email, video_id) DO UPDATE SET notes=$3, updated_at=NOW()`,
+    [user.email, req.body.video_id, notes]
+  );
+  res.json({ ok: true });
+});
+
+// ─── Admin: Video CRUD ──────────────────────────────────────────────────────
+app.post('/api/admin/createVideo', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const { title, description, category, file_path, file_type } = req.body;
+  const r = await pool.query(
+    'INSERT INTO edu_videos (title, description, category, file_path, file_type, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    [title, description || '', category || 'General', file_path, file_type || 'drive_video', user.email]
+  );
+  res.json({ ok: true, video: r.rows[0] });
+});
+
+app.post('/api/admin/updateVideo', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const { video_id, title, description, category } = req.body;
+  await pool.query(
+    'UPDATE edu_videos SET title=COALESCE($1,title), description=COALESCE($2,description), category=COALESCE($3,category) WHERE id=$4',
+    [title, description, category, video_id]
+  );
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/deleteVideo', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  await pool.query('DELETE FROM edu_videos WHERE id=$1', [req.body.video_id]);
+  res.json({ ok: true });
 });
 
 // ─── Admin: Manual CRUD ─────────────────────────────────────────────────────
