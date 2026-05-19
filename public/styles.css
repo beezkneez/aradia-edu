@@ -803,9 +803,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
   .manual-notes-close { display: block; }
   .manual-back-btn { display: block; }
 
-  /* Drill-down nav: when a manual is selected, hide the list and show the viewer full-bleed */
-  #page_manuals.viewing-manual .manuals-sidebar { display: none; }
-  #page_manuals:not(.viewing-manual) .manuals-viewer { display: none; }
+  /* Drill-down nav: when an item is selected, hide the list and show the viewer full-bleed */
+  #page_manuals.viewing-manual .manuals-sidebar,
+  #page_videos.viewing-manual .manuals-sidebar { display: none; }
+  #page_manuals:not(.viewing-manual) .manuals-viewer,
+  #page_videos:not(.viewing-manual) .manuals-viewer { display: none; }
 
   .manual-notes {
     position: absolute; left: 0; right: 0; bottom: 0;
