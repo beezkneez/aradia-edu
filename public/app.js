@@ -1504,7 +1504,9 @@ function editManualModal(id, title, desc, category) {
     </div>
     <div class="form-group">
       <label class="form-label">Category</label>
-      <input class="form-input" id="edit_manual_category" value="${category}">
+      <select class="form-input" id="edit_manual_category" onchange="handleCategoryChange(this, 'manual')">
+        <option>Loading categories…</option>
+      </select>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -1515,14 +1517,17 @@ function editManualModal(id, title, desc, category) {
       <button class="btn-primary" onclick="updateManual(${id})">Save</button>
     </div>
   `);
+  populateCategorySelect('edit_manual_category', 'manual', category);
 }
 
 async function updateManual(id) {
+  const catSel = document.getElementById('edit_manual_category').value;
+  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : '';
   await api('admin/updateManual', {
     manual_id: id,
     title: document.getElementById('edit_manual_title').value.trim(),
     description: document.getElementById('edit_manual_desc').value.trim(),
-    category: document.getElementById('edit_manual_category').value.trim()
+    category
   });
   hideModal(); toast('Manual updated', 'success'); loadAdminManuals();
 }
@@ -1546,10 +1551,39 @@ function extractDriveFileId(url) {
   return null;
 }
 
-function addDriveManualModal() {
-  const cats = [...new Set((STATE.manuals || []).map(m => m.category).filter(Boolean))];
-  const catOptions = cats.map(c => `<option value="${esc(c)}">`).join('');
+async function populateCategorySelect(elementId, surface, selectedName) {
+  const sel = document.getElementById(elementId);
+  if (!sel) return;
+  const r = await api('getCategories', { for: surface });
+  const cats = r.ok ? r.categories : [];
+  sel.innerHTML = `
+    <option value="">— Select category —</option>
+    ${cats.map(c => `<option value="${esc(c.name)}" ${selectedName && c.name === selectedName ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+    <option value="__ADD_NEW__">+ Add new category…</option>
+  `;
+}
 
+async function handleCategoryChange(selectEl, surface) {
+  if (selectEl.value !== '__ADD_NEW__') return;
+  const name = prompt('New category name:');
+  if (!name || !name.trim()) { selectEl.value = ''; return; }
+  const trimmed = name.trim();
+  const r = await api('admin/createCategory', { name: trimmed, applies_to: surface });
+  if (!r.ok) {
+    toast(r.reason || 'Failed to add category', 'error');
+    selectEl.value = '';
+    return;
+  }
+  const opt = document.createElement('option');
+  opt.value = r.category.name;
+  opt.textContent = r.category.name;
+  const addNewOpt = selectEl.querySelector('option[value="__ADD_NEW__"]');
+  selectEl.insertBefore(opt, addNewOpt);
+  selectEl.value = r.category.name;
+  toast(r.existed ? 'Category already existed' : 'Category added', 'success');
+}
+
+function addDriveManualModal() {
   showModal(`
     <h3>Add Manual from Google Drive</h3>
     <div class="form-group">
@@ -1565,8 +1599,9 @@ function addDriveManualModal() {
     </div>
     <div class="form-group">
       <label class="form-label">Category</label>
-      <input class="form-input" id="drive_category" list="drive_cat_list" placeholder="e.g. Pole, Aerial Hoop, Routines">
-      <datalist id="drive_cat_list">${catOptions}</datalist>
+      <select class="form-input" id="drive_category" onchange="handleCategoryChange(this, 'manual')">
+        <option>Loading categories…</option>
+      </select>
     </div>
     <div class="form-group">
       <label class="form-label">Description (optional)</label>
@@ -1577,12 +1612,14 @@ function addDriveManualModal() {
       <button class="btn-primary" onclick="saveDriveManual()">Save</button>
     </div>
   `);
+  populateCategorySelect('drive_category', 'manual');
 }
 
 async function saveDriveManual() {
   const url = document.getElementById('drive_url').value;
   const title = document.getElementById('drive_title').value.trim();
-  const category = document.getElementById('drive_category').value.trim() || 'General';
+  const catSel = document.getElementById('drive_category').value;
+  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : 'General';
   const description = document.getElementById('drive_description').value.trim();
 
   const fileId = extractDriveFileId(url);
@@ -1627,9 +1664,6 @@ async function loadAdminVideos() {
 }
 
 function addDriveVideoModal() {
-  const cats = [...new Set((STATE.videos || []).map(v => v.category).filter(Boolean))];
-  const catOptions = cats.map(c => `<option value="${esc(c)}">`).join('');
-
   showModal(`
     <h3>Add Video from Google Drive</h3>
     <div class="form-group">
@@ -1645,8 +1679,9 @@ function addDriveVideoModal() {
     </div>
     <div class="form-group">
       <label class="form-label">Category</label>
-      <input class="form-input" id="dv_category" list="dv_cat_list" placeholder="e.g. Pole 101, Aerial Hoop Level 1">
-      <datalist id="dv_cat_list">${catOptions}</datalist>
+      <select class="form-input" id="dv_category" onchange="handleCategoryChange(this, 'video')">
+        <option>Loading categories…</option>
+      </select>
     </div>
     <div class="form-group">
       <label class="form-label">Description (optional)</label>
@@ -1657,12 +1692,14 @@ function addDriveVideoModal() {
       <button class="btn-primary" onclick="saveDriveVideo()">Save</button>
     </div>
   `);
+  populateCategorySelect('dv_category', 'video');
 }
 
 async function saveDriveVideo() {
   const url = document.getElementById('dv_url').value;
   const title = document.getElementById('dv_title').value.trim();
-  const category = document.getElementById('dv_category').value.trim() || 'General';
+  const catSel = document.getElementById('dv_category').value;
+  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : 'General';
   const description = document.getElementById('dv_description').value.trim();
 
   const fileId = extractDriveFileId(url);
@@ -1691,7 +1728,9 @@ function editVideoModal(id, title, desc, category) {
     </div>
     <div class="form-group">
       <label class="form-label">Category</label>
-      <input class="form-input" id="edit_video_category" value="${category}">
+      <select class="form-input" id="edit_video_category" onchange="handleCategoryChange(this, 'video')">
+        <option>Loading categories…</option>
+      </select>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -1702,14 +1741,17 @@ function editVideoModal(id, title, desc, category) {
       <button class="btn-primary" onclick="updateVideo(${id})">Save</button>
     </div>
   `);
+  populateCategorySelect('edit_video_category', 'video', category);
 }
 
 async function updateVideo(id) {
+  const catSel = document.getElementById('edit_video_category').value;
+  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : '';
   await api('admin/updateVideo', {
     video_id: id,
     title: document.getElementById('edit_video_title').value.trim(),
     description: document.getElementById('edit_video_desc').value.trim(),
-    category: document.getElementById('edit_video_category').value.trim()
+    category
   });
   hideModal(); toast('Video updated', 'success'); loadAdminVideos();
 }

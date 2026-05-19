@@ -231,6 +231,32 @@ async function initDB() {
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(user_email, video_id)
       );
+
+      -- Category catalog (shared by manuals + videos). applies_to is
+      -- 'manual', 'video', or 'both' to control which dropdowns it shows in.
+      CREATE TABLE IF NOT EXISTS edu_categories (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        applies_to TEXT DEFAULT 'both' CHECK (applies_to IN ('manual', 'video', 'both')),
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // Seed edu_categories from any distinct categories already in use,
+    // plus ensure the "Aradia" category exists across both surfaces.
+    await client.query(`
+      INSERT INTO edu_categories (name, applies_to)
+      SELECT DISTINCT category, 'both' FROM (
+        SELECT category FROM edu_manuals WHERE category IS NOT NULL AND category <> ''
+        UNION
+        SELECT category FROM edu_videos WHERE category IS NOT NULL AND category <> ''
+      ) s
+      ON CONFLICT (name) DO NOTHING;
+
+      INSERT INTO edu_categories (name, applies_to)
+      VALUES ('Aradia', 'both')
+      ON CONFLICT (name) DO NOTHING;
     `);
     console.log('EDU tables initialized');
   } catch (e) {
@@ -856,6 +882,54 @@ app.post('/api/admin/deleteVideo', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
   await pool.query('DELETE FROM edu_videos WHERE id=$1', [req.body.video_id]);
+  res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATEGORIES API
+// ═══════════════════════════════════════════════════════════════════════════
+// List categories for a given surface ('manual', 'video'). 'both' always matches.
+app.post('/api/getCategories', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  const surface = req.body.for === 'video' ? 'video' : 'manual';
+  const r = await pool.query(
+    `SELECT id, name, applies_to FROM edu_categories
+     WHERE applies_to = 'both' OR applies_to = $1
+     ORDER BY sort_order, name`,
+    [surface]
+  );
+  res.json({ ok: true, categories: r.rows });
+});
+
+app.post('/api/admin/createCategory', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const name = String(req.body.name || '').trim();
+  if (!name) return res.json({ ok: false, reason: 'Name required' });
+  const applies_to = ['manual', 'video', 'both'].includes(req.body.applies_to)
+    ? req.body.applies_to : 'both';
+  try {
+    const r = await pool.query(
+      `INSERT INTO edu_categories (name, applies_to) VALUES ($1, $2) RETURNING *`,
+      [name, applies_to]
+    );
+    res.json({ ok: true, category: r.rows[0] });
+  } catch (e) {
+    if (e.code === '23505') {
+      // duplicate — fetch and return the existing row so the UI can select it
+      const ex = await pool.query('SELECT * FROM edu_categories WHERE name=$1', [name]);
+      res.json({ ok: true, category: ex.rows[0], existed: true });
+    } else {
+      res.json({ ok: false, reason: e.message });
+    }
+  }
+});
+
+app.post('/api/admin/deleteCategory', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  await pool.query('DELETE FROM edu_categories WHERE id=$1', [req.body.category_id]);
   res.json({ ok: true });
 });
 
