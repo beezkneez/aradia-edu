@@ -16,6 +16,8 @@ const STATE = {
   videos: [],
   videosFilter: 'all',
   selectedVideo: null,
+  favorites: [],
+  favoritesFilter: 'all',
   adminModules: [],
   editingModule: null,
   staffList: [],
@@ -147,7 +149,7 @@ function enterApp() {
 /* ═══════════════════════════════════════════════════════════════════════════
    NAVIGATION
    ═══════════════════════════════════════════════════════════════════════════ */
-function go(page) {
+async function go(page, openId) {
   if (STATE.currentPage === 'slide_editor' && page !== 'admin' && page !== 'viewer') return;
 
   if (STATE.currentPage === 'slide_editor' && page !== 'slide_editor') {
@@ -168,11 +170,17 @@ function go(page) {
   } else if (page === 'manuals') {
     document.getElementById('page_manuals').classList.add('active');
     document.querySelector('[data-nav="manuals"]').classList.add('active');
-    loadManuals();
+    await loadManuals();
+    if (openId) selectManual(openId);
   } else if (page === 'videos') {
     document.getElementById('page_videos').classList.add('active');
     document.querySelector('[data-nav="videos"]').classList.add('active');
-    loadVideos();
+    await loadVideos();
+    if (openId) selectVideo(openId);
+  } else if (page === 'favorites') {
+    document.getElementById('page_favorites').classList.add('active');
+    document.querySelector('[data-nav="favorites"]').classList.add('active');
+    loadFavorites();
   } else if (page === 'admin') {
     document.getElementById('page_admin').classList.add('active');
     document.querySelector('[data-nav="admin"]').classList.add('active');
@@ -883,6 +891,78 @@ async function toggleVideoFav(id) {
     if (video) video.is_favorite = r.favorited;
     renderVideosList();
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FAVORITES (combined view of starred manuals + videos)
+   ═══════════════════════════════════════════════════════════════════════════ */
+async function loadFavorites() {
+  const [mr, vr] = await Promise.all([api('getManuals'), api('getVideos')]);
+  const m = (mr.ok ? mr.manuals : []).filter(x => x.is_favorite).map(x => ({...x, _type: 'manual'}));
+  const v = (vr.ok ? vr.videos : []).filter(x => x.is_favorite).map(x => ({...x, _type: 'video'}));
+  STATE.favorites = [...m, ...v];
+  renderFavoritesFilters();
+  renderFavoritesList();
+}
+
+function renderFavoritesFilters() {
+  const types = ['All', 'Manuals', 'Videos'];
+  const el = document.getElementById('favorites_filter');
+  el.innerHTML = types.map(t => {
+    const key = t.toLowerCase();
+    return `<button class="filter-btn ${STATE.favoritesFilter === key ? 'active' : ''}"
+      onclick="setFavoritesFilter('${key}')">${t}</button>`;
+  }).join('');
+}
+
+function setFavoritesFilter(filter) {
+  STATE.favoritesFilter = filter;
+  renderFavoritesFilters();
+  renderFavoritesList();
+}
+
+function renderFavoritesList() {
+  const search = (document.getElementById('favorites_search').value || '').toLowerCase();
+  let filtered = STATE.favorites;
+  if (STATE.favoritesFilter === 'manuals') filtered = filtered.filter(f => f._type === 'manual');
+  else if (STATE.favoritesFilter === 'videos') filtered = filtered.filter(f => f._type === 'video');
+  if (search) filtered = filtered.filter(f =>
+    f.title.toLowerCase().includes(search) || (f.description || '').toLowerCase().includes(search)
+  );
+
+  const el = document.getElementById('favorites_list');
+  if (filtered.length === 0) {
+    el.innerHTML = `<div class="empty-state"><p>No favorites yet — tap the &#9733; on any manual or video to add one.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map(f => {
+    const icon = f._type === 'manual' ? '&#128196;' : '&#127909;';
+    const typeLabel = f._type === 'manual' ? 'Manual' : 'Video';
+    return `
+      <div class="manual-item" onclick="openFavorite('${f._type}', ${f.id})">
+        <div class="manual-icon">${icon}</div>
+        <div class="manual-info">
+          <div class="manual-title">${esc(f.title)}</div>
+          <div class="manual-category">${typeLabel} &middot; ${esc(f.category)}</div>
+        </div>
+        <button class="manual-fav favorited" onclick="event.stopPropagation();unfavoriteFromList('${f._type}', ${f.id})">
+          &#9733;
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function openFavorite(type, id) {
+  if (type === 'manual') go('manuals', id);
+  else go('videos', id);
+}
+
+async function unfavoriteFromList(type, id) {
+  if (type === 'manual') await api('toggleManualFavorite', { manual_id: id });
+  else await api('toggleVideoFavorite', { video_id: id });
+  STATE.favorites = STATE.favorites.filter(f => !(f._type === type && f.id === id));
+  renderFavoritesList();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

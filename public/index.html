@@ -39,6 +39,7 @@
       <button data-nav="modules" onclick="go('modules')">Modules</button>
       <button data-nav="manuals" onclick="go('manuals')">Manuals</button>
       <button data-nav="videos" onclick="go('videos')">Videos</button>
+      <button data-nav="favorites" onclick="go('favorites')">Favorites</button>
       <button data-nav="admin" id="nav_admin" style="display:none" onclick="go('admin')">Admin</button>
     </nav>
     <div class="header-right">
@@ -138,6 +139,21 @@
           <p>Select a video to play</p>
         </div>
       </div>
+    </div>
+
+    <!-- ═══ FAVORITES ══════════════════════════════════════════════════ -->
+    <div id="page_favorites" class="page">
+      <aside class="manuals-sidebar" style="width:100%;border-right:none">
+        <div class="manuals-sidebar-header">
+          <h3>Favorites</h3>
+          <div class="search-wrap">
+            <span class="search-icon">&#128269;</span>
+            <input class="manuals-search" id="favorites_search" placeholder="Search favorites..." oninput="renderFavoritesList()">
+          </div>
+          <div class="manuals-filter" id="favorites_filter"></div>
+        </div>
+        <div class="manuals-list" id="favorites_list"></div>
+      </aside>
     </div>
 
     <!-- ═══ ADMIN ══════════════════════════════════════════════════════ -->
