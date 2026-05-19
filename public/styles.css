@@ -786,10 +786,25 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 .manual-notes-fab:hover { transform: scale(1.05); }
 .manual-notes-fab:active { transform: scale(0.95); }
 
-@media (max-width: 900px) {
+.manual-back-btn {
+  display: none;
+  position: absolute; left: 12px; top: 12px; z-index: 6;
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: var(--bg2); color: var(--text); cursor: pointer;
+  font-size: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.manual-back-btn:hover { background: var(--bg3); }
+
+@media (max-width: 768px) {
   .manuals-viewer { flex-direction: column; }
   .manual-notes-fab { display: block; }
   .manual-notes-close { display: block; }
+  .manual-back-btn { display: block; }
+
+  /* Drill-down nav: when a manual is selected, hide the list and show the viewer full-bleed */
+  #page_manuals.viewing-manual .manuals-sidebar { display: none; }
+  #page_manuals:not(.viewing-manual) .manuals-viewer { display: none; }
+
   .manual-notes {
     position: absolute; left: 0; right: 0; bottom: 0;
     width: 100%; max-width: none; min-width: 0;

@@ -657,6 +657,7 @@ function selectManual(id) {
        </div>`;
 
   viewer.innerHTML = `
+    <button class="manual-back-btn" onclick="closeManual()" aria-label="Back to list">&larr;</button>
     <div class="manual-pane">${pdfPane}</div>
     <aside class="manual-notes" id="manual_notes_panel">
       <div class="manual-notes-header">
@@ -672,7 +673,20 @@ function selectManual(id) {
       &#128221;
     </button>`;
 
+  document.getElementById('page_manuals').classList.add('viewing-manual');
   loadManualNote(manual.id);
+  renderManualsList();
+}
+
+function closeManual() {
+  STATE.selectedManual = null;
+  document.getElementById('page_manuals').classList.remove('viewing-manual');
+  const viewer = document.getElementById('manuals_viewer');
+  viewer.innerHTML = `
+    <div class="manuals-viewer-empty">
+      <div class="empty-icon">&#128196;</div>
+      <p>Select a manual to view</p>
+    </div>`;
   renderManualsList();
 }
 
