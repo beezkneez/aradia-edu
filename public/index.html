@@ -151,6 +151,14 @@
             <div class="upload-hint">Supports .pdf, .doc, .docx</div>
             <input type="file" id="manual_file_input" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadManual(this)">
           </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:12px;color:var(--text3);font-size:12px">
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+            <span>or</span>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>
+          <button class="btn-secondary" style="margin-top:12px;width:100%" onclick="addDriveManualModal()">
+            &#128279; Add from Google Drive link
+          </button>
           <div class="admin-module-list" id="admin_manuals_list" style="margin-top:24px"></div>
         </div>
 

@@ -1296,6 +1296,75 @@ async function deleteManual(id) {
   if (r.ok) { toast('Manual deleted', 'success'); loadAdminManuals(); }
 }
 
+function extractDriveFileId(url) {
+  if (!url) return null;
+  const trimmed = String(url).trim();
+  let m = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  m = trimmed.match(/\/document\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  m = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(trimmed)) return trimmed;
+  return null;
+}
+
+function addDriveManualModal() {
+  const cats = [...new Set((STATE.manuals || []).map(m => m.category).filter(Boolean))];
+  const catOptions = cats.map(c => `<option value="${esc(c)}">`).join('');
+
+  showModal(`
+    <h3>Add Manual from Google Drive</h3>
+    <div class="form-group">
+      <label class="form-label">Google Drive link</label>
+      <input class="form-input" id="drive_url" placeholder="https://drive.google.com/file/d/.../view">
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        PDF must be shared as "Anyone with the link can view"
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="drive_title" placeholder="e.g. Pole 101 Manual">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <input class="form-input" id="drive_category" list="drive_cat_list" placeholder="e.g. Pole, Aerial Hoop, Routines">
+      <datalist id="drive_cat_list">${catOptions}</datalist>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea class="form-input" id="drive_description" placeholder="Brief description..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveDriveManual()">Save</button>
+    </div>
+  `);
+}
+
+async function saveDriveManual() {
+  const url = document.getElementById('drive_url').value;
+  const title = document.getElementById('drive_title').value.trim();
+  const category = document.getElementById('drive_category').value.trim() || 'General';
+  const description = document.getElementById('drive_description').value.trim();
+
+  const fileId = extractDriveFileId(url);
+  if (!fileId) return toast('That doesn\'t look like a Google Drive link', 'error');
+  if (!title) return toast('Please enter a title', 'error');
+
+  const file_path = `https://drive.google.com/file/d/${fileId}/preview`;
+  const r = await api('admin/createManual', {
+    title, description, category, file_path, file_type: 'pdf'
+  });
+  if (r.ok) {
+    hideModal();
+    toast('Manual added from Drive', 'success');
+    loadAdminManuals();
+  } else {
+    toast(r.reason || 'Failed to add manual', 'error');
+  }
+}
+
 async function loadProgress() {
   const moduleId = document.getElementById('progress_module_select').value;
   const wrap = document.getElementById('progress_table_wrap');
