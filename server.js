@@ -919,6 +919,209 @@ const DRIVE_MANUALS_IMPORT = [
   { title: 'Aradia Chair Routine',         category: 'Routines',    drive_id: '1jg2pm7CPrU_tDX7UnjMeHn59wwxz9NDh', sort_order: 1 },
 ];
 
+// ─── Admin: One-shot bulk import of videos from Drive ──────────────────────
+// Categories chosen for substring matching against users.teaches:
+//   "pole" matches everything starting with "Pole "
+//   "aerial hoop" matches "Aerial Hoop Level N"
+//   "parties" matches "Parties"
+//   "Routines" is universal (visible to all)
+const DRIVE_VIDEOS_IMPORT = [
+  // Aerial Hoop Level 1
+  { drive_id: '1DHEL-VqYqx_1Lx1OS411Hm6-kviWTXFY', title: 'Angel to Bathtub',                category: 'Aerial Hoop Level 1' },
+  { drive_id: '1Cyd0s-hQKW-5bTszgY5HPXid9W6z9EBN', title: 'Front Balance Roll to Delilah',  category: 'Aerial Hoop Level 1' },
+  { drive_id: '1CjyrUmYHYOG6QLcPL5DyHsg6kOn3fiRU', title: 'Flip Mount',                      category: 'Aerial Hoop Level 1' },
+  { drive_id: '1CV9irIpf51IdydzUZwJBdYetzpRfsvdj', title: 'Helicopter Mount',                category: 'Aerial Hoop Level 1' },
+  { drive_id: '1BhRUCB1hBG1vIRkBadmgSy07IOjJNrHq', title: 'Delilah Mount',                   category: 'Aerial Hoop Level 1' },
+  { drive_id: '1B7qH-hFKrfZrHSPOIN6-xYjicIum2OFM', title: 'Pike Mount',                      category: 'Aerial Hoop Level 1' },
+  { drive_id: '1dhbZ_r5Ybjri77Mcl08xs6stowL37mVl', title: 'Side Mount',                      category: 'Aerial Hoop Level 1' },
+  { drive_id: '1DdsiFiJTc25zMDc4v5mwiod64OGLdXh3', title: 'Side Mount, Double Leg Variation',category: 'Aerial Hoop Level 1' },
+
+  // Aerial Hoop Level 2
+  { drive_id: '1EjMHgSSrSyW1cHovNsrehyuVK2LXF64A', title: 'Inverted Straddle, Walkout Entry',category: 'Aerial Hoop Level 2' },
+  { drive_id: '1EzPp4hg5ArrTqIWUfrV8gahz4vq5KGAw', title: 'Beats to Sit',                    category: 'Aerial Hoop Level 2' },
+  { drive_id: '1EdsfqYmc0Hrvk4A7iqBviHOY7abnXAHv', title: 'Front Balance to Coffin to Sit',  category: 'Aerial Hoop Level 2' },
+  { drive_id: '1FrwDvrv58X07oVC-BRXdD2tQdi9VFC7T', title: 'Combo: Star, Secretary, Horse, Monkey Roll, Martini', category: 'Aerial Hoop Level 2' },
+  { drive_id: '1EZcuafCnBvn-xMWzbtUz3XD5rcFTARpr', title: 'Monkey Roll',                     category: 'Aerial Hoop Level 2' },
+
+  // Aerial Hoop Level 3
+  { drive_id: '1IZG54F1v0DiBF4wUP5V02xcRtgvuF7hM', title: 'Flip Mount to Helicopter Transition', category: 'Aerial Hoop Level 3' },
+  { drive_id: '1I9_ayqdxEh1wKDrG8z6UWJbgfs1vsAQ4', title: 'Hocks Slide',                     category: 'Aerial Hoop Level 3' },
+
+  // Pole 101
+  { drive_id: '16rg2rm-lbZzYv0z5JW81OPL288OBZME-', title: 'Side Lat Stretch',                category: 'Pole 101' },
+  { drive_id: '1MK_otKWrFd16kB7IPwrfqrNPN1lSMPg8', title: 'Body Walkdown',                   category: 'Pole 101' },
+  { drive_id: '1_wnD9FiuZJ69uJrktgmjWIyWYHU3hN8b', title: 'Kick Forward Kick Back',          category: 'Pole 101' },
+  { drive_id: '1_8nbDmeQehOWYCJqJJ6I7YrFGqLNjQqy', title: 'Cool Down Example 3',             category: 'Pole 101' },
+  { drive_id: '1rfxU7C_st2fRjd99MCT_G76MDGrYBmWq', title: 'Cat Push Ups',                    category: 'Pole 101' },
+  { drive_id: '1wnW_PCg_KxUNy-bW74i4d1Um9qlRU9Kz', title: 'Tuck to Peel Get Up',             category: 'Pole 101' },
+  { drive_id: '1uHO7kl2Nedb6JagerxJ2GeX_JvYyHKEd', title: 'Aradia Push Ups',                 category: 'Pole 101' },
+  { drive_id: '1UXH6ulyttyqf_Tio6uZK7WDJ_TYRYIsb', title: 'Cat Spirals',                     category: 'Pole 101' },
+  { drive_id: '1_k-Zy-XZUzG7kE-9kow8hvrjFr7EdH1a', title: 'Sensual Get Up',                  category: 'Pole 101' },
+  { drive_id: '1z0ZjkcQmvIL57bwxb8Qg0yEp80Cgj0KX', title: 'Cupid Crunches',                  category: 'Pole 101' },
+  { drive_id: '1XU0aQ33V8_6dAa0IUiyUXyIoDVuCmfSx', title: 'Pole Ups',                        category: 'Pole 101' },
+  { drive_id: '1MJH2o3Cx7nSKCPvSutXEWhfbuis0LFQ2', title: 'Clocks 2',                        category: 'Pole 101' },
+  { drive_id: '17f5JcJcv3H6srYHhBI81RTNSKmygqtET', title: 'Peek A Boos',                     category: 'Pole 101' },
+  { drive_id: '19xpQJfdbhaCyuuigIDZ2d7lxsgBMpPD4', title: 'Clocks',                          category: 'Pole 101' },
+  { drive_id: '1Ba9HN8_OfxsYSnOpuBe546_6uRuF-Fqb', title: 'Rocking Cats',                    category: 'Pole 101' },
+  { drive_id: '1_kyYirJk2MIMbp7Vo6VrPtpx20kMJBIR', title: 'Basic Get Down',                  category: 'Pole 101' },
+  { drive_id: '175DE2bTkBWPw6rwWBcHx-8W46lx9LWHS', title: 'Front Hook Spin',                 category: 'Pole 101' },
+  { drive_id: '17ALehc-LLAjbeGuGKI9S62iBXgrhHqWR', title: 'L Turn',                          category: 'Pole 101' },
+  { drive_id: '17A2RJ6lk9rGVdNmaRTrHJ-9BUnJOZiJF', title: 'Side to Side',                    category: 'Pole 101' },
+  { drive_id: '1wecVJqBS4VTbShkRP1LjlKIW__6uYsYw', title: 'Cat Get Down',                    category: 'Pole 101' },
+  { drive_id: '17aKVY_vmA3qTom6WFUi5PM7oid4SMxFa', title: 'Pole Slide',                      category: 'Pole 101' },
+  { drive_id: '15ulnaFuTsYSWwic1pYIvq5VNj2vq_FrN', title: 'Front Hook',                      category: 'Pole 101' },
+  { drive_id: '17N2qDcKBMCl_1d_n_7PGdXG9500wfBE_', title: 'Pole Overs and Dancers Kick',     category: 'Pole 101' },
+  { drive_id: '17np2fAU9Xvf2F3oi3GTfs907zRBu4pDi', title: 'Chair Spin',                      category: 'Pole 101' },
+  { drive_id: '17KxEXKVYiXXf61f3IiKH82Lqxng0uQJV', title: 'Pole Turns',                      category: 'Pole 101' },
+  { drive_id: '17Zov0gU42-3P5f0A71nH2xlhfHydYiVI', title: 'Big Dip',                         category: 'Pole 101' },
+  { drive_id: '1wLDk2jkkKZxKrQ1fEK0tO_fZbEoYR-Hw', title: 'Ballerina Spin',                  category: 'Pole 101' },
+  { drive_id: '176Hbb47InR-0z6dSj3VjAsSCjzswOS4e', title: 'Firefighter Spin',                category: 'Pole 101' },
+  { drive_id: '176s0lQcrW1hjCi7JTtk2m6P8do0aqF34', title: 'Backwards Spin',                  category: 'Pole 101' },
+  { drive_id: '179x1gx0H1aIwwXZetAPVDwJfN9uBSdnQ', title: 'Fan Kick',                        category: 'Pole 101' },
+  { drive_id: '17qLRWqijRSeZvTyolBrc5PED0Hhlqs-7', title: 'Pole 101 Routine',                category: 'Pole 101' },
+  { drive_id: '1T8HMQwybWAIHT6qnOzKY6ujfKQT75drg', title: 'Pole 101 Routine (v2)',           category: 'Pole 101' },
+
+  // Pole Beginner
+  { drive_id: '18hkg4DTuJ4gWtimOikxSthCyQ7E4nE0K', title: 'Sunwheel Spin',                   category: 'Pole Beginner' },
+  { drive_id: '18mh1qn7fmieQtGtYys_fKaL8g30UyD0R', title: 'Backwards Sunwheel Spin',         category: 'Pole Beginner' },
+  { drive_id: '18HUGsdDE51BybS0_5efHRXwPy22XEGyS', title: 'Firefighter Martini Spin',        category: 'Pole Beginner' },
+  { drive_id: '17xVoJl5FFx6DdbV4YHiWxJf-TD5k4gwz', title: 'Crossed Legged Chair Spin',       category: 'Pole Beginner' },
+  { drive_id: '19UM8fOAZfG02Rxeb_aOL52AbjtPw-HNU', title: 'Advanced PoleOver Spin',          category: 'Pole Beginner' },
+  { drive_id: '18Ur4Ve52WP4OzU8rBMZ-zAY8v-Z7q-jT', title: 'Switcharoo Spin',                 category: 'Pole Beginner' },
+  { drive_id: '1AnmHFxG2QIL2MI2iTv8HPTih4zgLH9fk', title: 'Cool Down Level 3 Example',       category: 'Pole Beginner' },
+  { drive_id: '181XEt1LcJj8pFZqOQcWzBS26QNk8khep', title: 'One Handed Firefighter Spin',     category: 'Pole Beginner' },
+  { drive_id: '1nWeY7E_i_HDlXY1Ej7aKAsJ62x0tR74T', title: 'Cartwheel Get Up',                category: 'Pole Beginner' },
+  { drive_id: '19ct391NiW2d0FUT8d0n9Z-OsKBZLhfrb', title: 'Basic Inversion',                 category: 'Pole Beginner' },
+  { drive_id: '19B8frdgFnNtjxwFU0I4GLVO7wQJwdtUC', title: 'Corkscrew Spin',                  category: 'Pole Beginner' },
+  { drive_id: '18mI8yhXMdWDJ6eM82dA0l4Xr6aten7n3', title: 'Mermaid Spin',                    category: 'Pole Beginner' },
+  { drive_id: '19Y91imwLMrgHeB4QzVO6LyIdLZYAVx9N', title: 'Boomerang (PNE) Spin',            category: 'Pole Beginner' },
+  { drive_id: '1u0EKQ41Q3tSWtuYYCnKoKQNLbPYhXtgt', title: 'Assisted Pole Ups',               category: 'Pole Beginner' },
+  { drive_id: '1PcErzP2CyH54IbS44iD1gQrjcrb7B4XA', title: 'Backwards Shoulder Roll',         category: 'Pole Beginner' },
+  { drive_id: '187dyBdk1Ilh3t9SupsnD-ZS_m7N8z2lZ', title: 'Passe Chair Spin',                category: 'Pole Beginner' },
+  { drive_id: '18OqCCF69JFfw7QFyoA9Rfuy3C4fwwUjH', title: 'Pole Over Spin',                  category: 'Pole Beginner' },
+  { drive_id: '17rvnFai1XXn2OHcSSZRgNnShM84Nzs4Q', title: 'Firefighter Attitude Spin',       category: 'Pole Beginner' },
+  { drive_id: '17yBSB_qYpV-uT02L7eFV7gUnUmFEsJSY', title: 'Cross Legged Pole Sit',           category: 'Pole Beginner' },
+  { drive_id: '1FpXe7jaXZRRF4mYrwD_DPfJpQ69AcqVR', title: 'Forearm Stretches',               category: 'Pole Beginner' },
+  { drive_id: '1w2n_TGE1d_oUEfTe4VS_vZyW0kR4UnOV', title: 'Climb Preps on the Floor',        category: 'Pole Beginner' },
+  { drive_id: '1DUgga4XIGcEL0GF8-CKOeLFkE6T72utx', title: 'Mini Firefighter Get Up',         category: 'Pole Beginner' },
+  { drive_id: '1J3oaav2iU2nG8-W0irDof_vJVgq6lycr', title: 'Lunge Sweep Get Up',              category: 'Pole Beginner' },
+  { drive_id: '1VuiqaZuxuDdzU_NJt12KFDpaFE8ndmye', title: 'Split Grip Get Up',               category: 'Pole Beginner' },
+  { drive_id: '1ostMbyPnppbg78S65H6kTzjTVFmUALYA', title: 'Baseball Climb',                  category: 'Pole Beginner' },
+  { drive_id: '13qW2Y813PgQRnrTNwmU67C4BgvwQPf-v', title: 'Step Up Climb Prep',              category: 'Pole Beginner' },
+  { drive_id: '1DbgiD-9WMw1UYHPpsPMCR9sZyvYMzcNo', title: 'Inversion from the Floor',        category: 'Pole Beginner' },
+  { drive_id: '1nfbljWotpMQJjYiqyGnn562M73NuY9iw', title: 'Floor Fankicks',                  category: 'Pole Beginner' },
+  { drive_id: '1r-qx0_tuXhzBadCT1wpJjiFv6WeQiGUh', title: 'Cupid Crunches',                  category: 'Pole Beginner' },
+  { drive_id: '19KbQIn_AHJ8Y4vNyVslYbiBZ5mG52t2F', title: 'V/Diamond/Side Strength Hold',    category: 'Pole Beginner' },
+  { drive_id: '18DvXQh-GJwxl2ZIEP9pGx65k4TACQoz2', title: 'Straight Legged Pole Sit',        category: 'Pole Beginner' },
+  { drive_id: '196Rr-Yl5ILbwbQZN9YWXlLq4YNzH2tRb', title: 'Straight Legged Firefighter',     category: 'Pole Beginner' },
+  { drive_id: '19-K2d7p-fNijHd74FqeCyaXpsPjOEci5', title: 'Straight Legged Ballerina',       category: 'Pole Beginner' },
+  { drive_id: '18flRRziyTq2-w3XL6Q83SgM2i_vuW0BK', title: 'Diamond Spin',                    category: 'Pole Beginner' },
+  { drive_id: '184gFXfMfls483G6CGYjVmLRudMTPmxCx', title: 'Big Dip into Backwards Spin',     category: 'Pole Beginner' },
+  { drive_id: '19_qsb2cLRQmxspte7SOD-ijvL7WI2Hp9', title: 'Pole Faint',                      category: 'Pole Beginner' },
+
+  // Pole Intermediate
+  { drive_id: '1N77NjuOBluWu1lCK9U3KjFhq-9EFWvOP', title: 'Extended Butterfly',              category: 'Pole Intermediate' },
+  { drive_id: '1MKIwr1qp-jBDPQ0dhescIygjdClT0LCf', title: 'Invert to Snake Out',             category: 'Pole Intermediate' },
+  { drive_id: '1Mqzn6bqHm3AtSN5TO1JeKfxIkTiPi04j', title: 'Jasmine/Jagged Edge from the Floor', category: 'Pole Intermediate' },
+  { drive_id: '1MiearQFF6xjVhO1wmzraNxjjSj627WB4', title: 'Helicopter Inversion',            category: 'Pole Intermediate' },
+  { drive_id: '1NGS1lKgUGaRVURDi74GETULkQ3bgK0H2', title: 'Jasmine/Jagged Edge',             category: 'Pole Intermediate' },
+  { drive_id: '1NnnBUNFP9yrFGOifkg-2JDLTvtpS0tmg', title: 'Butterfly to Bow and Arrow',      category: 'Pole Intermediate' },
+  { drive_id: '1MNaeRPBxOM6g7-UXwesUgsS7N9fVFUPK', title: 'Spiral Spin',                     category: 'Pole Intermediate' },
+  { drive_id: '1MyTRIU_FLh7ZPxUk6s0bZSv-9d-pd41s', title: 'Twister Spin',                    category: 'Pole Intermediate' },
+  { drive_id: '1MJmxWLlR-1ST9Ob3qIjLBN72naqXSTDW', title: 'Inverted Crucifix',               category: 'Pole Intermediate' },
+  { drive_id: '1M_KCYROv3A5YwT-MZAhEQFWwWQL2c1GN', title: 'Invert to Handstand Variations',  category: 'Pole Intermediate' },
+  { drive_id: '1M1OZLxT6G3mae15sLV3XQ21qGbywHRCA', title: 'Chimney Sweep Spin',              category: 'Pole Intermediate' },
+  { drive_id: '1MehXid_hAFiRwqe7_s6SD6BhmthgTMA_', title: 'Invert to Exit with Superman Legs',category: 'Pole Intermediate' },
+  { drive_id: '1N8y118B4SMpy4Wwho11vYp8ELcWjuPtv', title: 'Jamilla',                         category: 'Pole Intermediate' },
+  { drive_id: '1MdG8QH7WUi6EUrndeHkEErN1O4UbER7w', title: 'Butterfly',                       category: 'Pole Intermediate' },
+  { drive_id: '1NIpx2fH7a3bax-Bk-Tg5Dk9q9wfndkvI', title: 'Descending Angel',                category: 'Pole Intermediate' },
+  { drive_id: '1NB7CRSMdEZjDK9m_X7-U05jlJPXpf3SL', title: 'Outside Leg Hook',                category: 'Pole Intermediate' },
+  { drive_id: '1M4COqcWor1Bc8RpL9lxgpWYzRsCqh-Yr', title: 'Fan Kick to Sit/Climb',           category: 'Pole Intermediate' },
+  { drive_id: '1MW5SiF3fpszFZbLHi6wfNTOCJhfbWv-m', title: 'Juliette Spin',                   category: 'Pole Intermediate' },
+  { drive_id: '1NYDLeIZt9cYymzz_vTQUNne9fJoBfoyF', title: 'Hawaii Spin',                     category: 'Pole Intermediate' },
+  { drive_id: '1NTipTMbTMZsQ_NH7gZUqWkbBEa4vzLhd', title: 'Teddy',                           category: 'Pole Intermediate' },
+  { drive_id: '1Mc2-yTycDAdNoBacft1sBlkxrB7KicLA', title: 'Wrist Seat and Wrist Seat Variation', category: 'Pole Intermediate' },
+  { drive_id: '1NiS2tu0VJro-MqTW-uVBnxF3afOREL-8', title: 'Stargazer',                       category: 'Pole Intermediate' },
+  { drive_id: '1NMl5yKWBgGjD-26UJ0lyWF2GinHZBFeQ', title: 'Spinning Helicopter',             category: 'Pole Intermediate' },
+  { drive_id: '1NI1NFSvnG-GzHsxEODnBRn-ZdSi7pVEZ', title: 'Reiko',                           category: 'Pole Intermediate' },
+  { drive_id: '1NN8dObdARyovVPq2oR79iF685FWIJsv0', title: 'Martini Sit',                     category: 'Pole Intermediate' },
+  { drive_id: '1Mrza-YCQjj7PxpzzZSTXO6r57pMfI-cl', title: 'Swan Sit',                        category: 'Pole Intermediate' },
+  { drive_id: '1M5qwz1xCvhO_bB_VXY9Q5IprH1pLQOc4', title: 'Side Climb',                      category: 'Pole Intermediate' },
+  { drive_id: '1NKQAAIGw0QTCUMsT3_sqYtYnW6KMZlmA', title: 'Hood Ornament',                   category: 'Pole Intermediate' },
+  { drive_id: '1MRjSJ4NjWW7oEQl2zylVeqWFB2A5203P', title: 'Bow and Arrow',                   category: 'Pole Intermediate' },
+  { drive_id: '1MJF89y8Z4BheZIFk1rtRvaGDXQ5XcZLk', title: 'Pole Sit Layout',                 category: 'Pole Intermediate' },
+
+  // Pole Advanced 1
+  { drive_id: '1Sm40rc1MWXHZ31Hysxt6PGgDd0boJTx0', title: 'Superman from Jasmine/Jagged Edge', category: 'Pole Advanced 1' },
+  { drive_id: '1RJCijZpcmZQSFS4Wg9oatIlBVOV7NUGw', title: 'Butterfly into Side Splits',      category: 'Pole Advanced 1' },
+  { drive_id: '1RWOTFk-pqJTFF3wJC6AS7t1v9BIil12-', title: 'Bow and Arrow to Butterfly',      category: 'Pole Advanced 1' },
+  { drive_id: '1Rww4rymbrA_5hh66X4N5Xx26j1sj2ZJl', title: 'Croissant',                       category: 'Pole Advanced 1' },
+  { drive_id: '1S4KqgSDd4Enx9bj66o77WulsV-ET9R8H', title: 'Swing into Jasmine/Jagged Edge',  category: 'Pole Advanced 1' },
+  { drive_id: '1SQ8g1z130Q6VxvgleZtW4ufJivyp5fAs', title: 'Inverted D to Split Grip Ayesha', category: 'Pole Advanced 1' },
+  { drive_id: '1RWH1mpdk8oBUq9e4hJnQ6lxK3ZZiDO3f', title: 'Hip Hold/Pike',                   category: 'Pole Advanced 1' },
+  { drive_id: '1RKTkEs6A5HSYQnB8u_dDrFKiB__zEiBi', title: 'Butterfly to Inverted Splits',    category: 'Pole Advanced 1' },
+  { drive_id: '1SAnYV98SyKHgkKmude-_wLuhora5simf', title: 'Butterfly to Croissant to Brass Monkey', category: 'Pole Advanced 1' },
+  { drive_id: '1SSC47W0uXRdy2rfIhSt9Z9WQUwNLEe92', title: "Bird's Nest (old)",                category: 'Pole Advanced 1' },
+  { drive_id: '1SHL0brffzVeMTuNnTcJK2FbR7mPpOlF6', title: 'Inverted D',                      category: 'Pole Advanced 1' },
+  { drive_id: '1RchDPuWN4xRRgsO75IodSqn_m0x2WjxV', title: 'Remi Sit',                        category: 'Pole Advanced 1' },
+  { drive_id: '1SaIMGxDpl1e6YJY-bI-tRHGejELsPMVp', title: 'Shoulder Mount',                  category: 'Pole Advanced 1' },
+  { drive_id: '1SBL-UFtNgx80V8EreCY742U5tUHMfini', title: 'Ball Drop',                       category: 'Pole Advanced 1' },
+  { drive_id: '1SjeaDYOGtMFV-zW_Ef5TFSmGH_URwbUQ', title: 'Superman from the Floor',         category: 'Pole Advanced 1' },
+  { drive_id: '1Rvzk400eWq9x6e-4glgb1SsY_m44AJmB', title: 'Sleeping Beauty/Cross Ankle Layback', category: 'Pole Advanced 1' },
+  { drive_id: '1Req9QhLxok1j9SVPy71Dh3OpF6cc_xTi', title: 'Outside Leg Hang',                category: 'Pole Advanced 1' },
+  { drive_id: '1SUnrbuk3WQPcv-F0EABFjDbV-hoCzlA6', title: 'Genie',                           category: 'Pole Advanced 1' },
+  { drive_id: '1Sc9gdStZKTP8NrqsOs3eNjyqFZbLvwbY', title: 'Flatline Scorpio',                category: 'Pole Advanced 1' },
+  { drive_id: '1RwjEnnigdTsyJAcHNemxDkRZNFsIx_QI', title: 'Aerial Inversion',                category: 'Pole Advanced 1' },
+  { drive_id: '1SI5_4wqJFID2cEknDzu3JFew_Fe-of67', title: 'Rockstar Spin',                   category: 'Pole Advanced 1' },
+  { drive_id: '1RwuWfd2sJyXnqAkUslAfDXzuDctE3Czi', title: 'Swing Climb',                     category: 'Pole Advanced 1' },
+  { drive_id: '1RkniUv_jWlE92SGG_1v0WdoLExJ5oAPh', title: 'Leg Switches',                    category: 'Pole Advanced 1' },
+  { drive_id: '1Rd4nm6l3g78MVn75njtXsyG7O9wU2APW', title: 'Inside Leg Hang',                 category: 'Pole Advanced 1' },
+  { drive_id: '1RLdD_VZoq5MsS44q4JfqUQscDq6rqbKc', title: 'Dragonfly/Inverted Thigh Hold',   category: 'Pole Advanced 1' },
+  { drive_id: '1Sn56QAhr-H9FeiQlZCNl3I4BEBU_Qanp', title: 'Superman from Flatline',          category: 'Pole Advanced 1' },
+
+  // Pole Advanced 2
+  { drive_id: '1ZzbxioLV3XwczTdI1m2WhrodrfijOxyc', title: 'Russian Sit Layback',             category: 'Pole Advanced 2' },
+  { drive_id: '1ZQ8BzdbBgtWzyovkBaXUhTEZuxlwxAWo', title: 'Iguana Deadlift',                 category: 'Pole Advanced 2' },
+  { drive_id: '1Z_2vEeeKpyJlHVi6_TLe7PhdXM1ep00A', title: 'Duchess/Jade Split',              category: 'Pole Advanced 2' },
+  { drive_id: '1ZQ77i87QGUXHFGUWhK5nVWAxGWUmBAVN', title: 'Shoulder Mount to Brass Monkey',  category: 'Pole Advanced 2' },
+  { drive_id: '1ZQMQrIQptqw4eCMOz9XstKAWT6KLs6BK', title: 'Circus Climb',                    category: 'Pole Advanced 2' },
+  { drive_id: '1ZGBiyyC3jWkvoGadUl82AW3Tv7_MdkUi', title: 'Flag',                            category: 'Pole Advanced 2' },
+  { drive_id: '1Z_O-FJOHSjspmaZC5bINSO5FoO3_p0Nl', title: 'Skittles Drop',                   category: 'Pole Advanced 2' },
+  { drive_id: '1Zrfc3TUZydcSuOnaBHLsS2xK5BhHbJ62', title: 'Body Switches',                   category: 'Pole Advanced 2' },
+
+  // Parties
+  { drive_id: '14yHTelPii7eNBdqOJmpppUtsA0-eI7oV', title: 'Pole Party Routine',              category: 'Parties' },
+  { drive_id: '1lIDw9z9qiVSYBLqfebyhquabhHPV9D4s', title: 'Chair Routine',                   category: 'Parties' },
+
+  // Chair Dance Routine (universal — category "Routines")
+  { drive_id: '1Sb8KaVRQ488ouaYcf98Iu09EfFRE2rAl', title: 'Chair Dance Routine',             category: 'Routines' },
+];
+
+app.post('/api/admin/importDriveVideos', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+
+  const inserted = [];
+  const skipped = [];
+  let sortByCategory = {};
+  for (const v of DRIVE_VIDEOS_IMPORT) {
+    const file_path = `https://drive.google.com/file/d/${v.drive_id}/preview`;
+    const existing = await pool.query('SELECT id FROM edu_videos WHERE file_path=$1', [file_path]);
+    if (existing.rows.length > 0) {
+      skipped.push({ title: v.title, reason: 'already imported' });
+      continue;
+    }
+    sortByCategory[v.category] = (sortByCategory[v.category] || 0) + 1;
+    const r = await pool.query(
+      `INSERT INTO edu_videos (title, description, category, file_path, file_type, uploaded_by, sort_order)
+       VALUES ($1,'',$2,$3,'drive_video',$4,$5) RETURNING id`,
+      [v.title, v.category, file_path, user.email, sortByCategory[v.category]]
+    );
+    inserted.push({ id: r.rows[0].id, title: v.title, category: v.category });
+  }
+  res.json({ ok: true, inserted, skipped, totals: { inserted: inserted.length, skipped: skipped.length } });
+});
+
 app.post('/api/admin/importDriveManuals', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
