@@ -1228,6 +1228,17 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
   .manuals-sidebar { width: 100%; }
   .se-sidebar { display: none; }
   .se-props { display: none; }
-  .app-header { padding: 0 16px; }
+  .app-header { padding: 0 10px; gap: 4px; }
+  .app-title { font-size: 16px; }
   .header-user { display: none; }
+  .header-right { gap: 6px; }
+  .header-nav { gap: 0; }
+  .header-nav button { padding: 6px 10px; font-size: 12.5px; }
+  .btn-logout {
+    font-size: 0; padding: 0;
+    width: 34px; height: 34px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .btn-logout::before { content: "\23FB"; font-size: 16px; line-height: 1; }
 }
