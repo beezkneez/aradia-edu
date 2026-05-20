@@ -143,7 +143,18 @@ function enterApp() {
       ['dark', 'light', 'aradia'].includes(theme) ? theme : 'dark');
   }
 
-  go('modules');
+  const params = new URLSearchParams(location.search);
+  const videoId = parseInt(params.get('video'), 10);
+  const manualId = parseInt(params.get('manual'), 10);
+  if (videoId) {
+    history.replaceState(null, '', location.pathname);
+    go('videos', videoId);
+  } else if (manualId) {
+    history.replaceState(null, '', location.pathname);
+    go('manuals', manualId);
+  } else {
+    go('modules');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
