@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3400;
@@ -49,13 +50,13 @@ async function getAuthorizedUser(email, pin) {
     const u = r.rows[0];
     const pinStr = String(pin || '').trim();
     const storedPin = u.pin || '';
+    let ok = false;
     // Support both bcrypt hashed and plain text PINs (transitional).
     // On a successful plaintext match, auto-migrate to bcrypt.
     if (storedPin.startsWith('$2b$') || storedPin.startsWith('$2a$')) {
-      const match = await bcrypt.compare(pinStr, storedPin);
-      if (!match) return null;
-    } else {
-      if (storedPin !== pinStr) return null;
+      ok = await bcrypt.compare(pinStr, storedPin);
+    } else if (storedPin && storedPin === pinStr) {
+      ok = true;
       try {
         const hashed = await bcrypt.hash(storedPin, 10);
         await pool.query(`UPDATE users SET pin=$1 WHERE id=$2`, [hashed, u.id]);
@@ -63,16 +64,46 @@ async function getAuthorizedUser(email, pin) {
         console.warn(`[AUTH] Failed to auto-hash plaintext PIN for ${u.email}: ${e.message}`);
       }
     }
-    return {
-      id: u.id, email: u.email, name: u.name, type: u.type,
-      username: u.username, profile_pic: u.profile_pic,
-      preferred_theme: u.preferred_theme,
-      isAdmin: u.is_superuser === true || u.type === 'admin' || u.username === 'admin',
-      isModerator: u.type === 'moderator',
-      teaches: u.teaches,
-      admin_permissions: u.admin_permissions
-    };
+    // Alternative credential: an edu session token (issued via SSO hand-off from
+    // the portal). Lets a user authenticate without their PIN ever hitting a URL.
+    if (!ok && pinStr) {
+      const s = await pool.query(
+        `SELECT 1 FROM edu_sessions WHERE token=$1 AND LOWER(user_email)=LOWER($2) AND expires_at > NOW()`,
+        [pinStr, u.email]
+      );
+      if (s.rows.length) ok = true;
+    }
+    if (!ok) return null;
+    return shapeUser(u);
   } catch (e) { console.error('Auth error:', e); return null; }
+}
+
+// Same projection as getAuthorizedUser, without a credential check. Only call
+// after the caller's identity has already been proven (e.g. a valid SSO token).
+function shapeUser(u) {
+  return {
+    id: u.id, email: u.email, name: u.name, type: u.type,
+    username: u.username, profile_pic: u.profile_pic,
+    preferred_theme: u.preferred_theme,
+    isAdmin: u.is_superuser === true || u.type === 'admin' || u.username === 'admin',
+    isModerator: u.type === 'moderator',
+    teaches: u.teaches,
+    admin_permissions: u.admin_permissions
+  };
+}
+
+async function getUserByEmail(email) {
+  try {
+    const r = await pool.query(
+      `SELECT id, email, name, type, username, is_active, profile_pic, preferred_theme, pin,
+              is_superuser, COALESCE(teaches, '') as teaches,
+              COALESCE(admin_permissions, '{}') as admin_permissions
+       FROM users WHERE LOWER(email)=LOWER($1) AND is_active=TRUE`,
+      [email]
+    );
+    if (r.rows.length === 0) return null;
+    return shapeUser(r.rows[0]);
+  } catch (e) { console.error('getUserByEmail error:', e); return null; }
 }
 
 function isAdminOrMod(user) {
@@ -241,6 +272,26 @@ async function initDB() {
         sort_order INT DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- One-time SSO hand-off tokens written by aradia-time (portal) so a
+      -- logged-in portal user lands here already authenticated. Shared DB.
+      CREATE TABLE IF NOT EXISTS edu_sso_tokens (
+        token       TEXT PRIMARY KEY,
+        user_email  TEXT NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        expires_at  TIMESTAMPTZ NOT NULL,
+        used_at     TIMESTAMPTZ
+      );
+
+      -- Edu session tokens minted after a successful SSO hand-off. These act as
+      -- an alternative credential to the PIN for subsequent /api calls, so the
+      -- user's real PIN never needs to travel through a URL.
+      CREATE TABLE IF NOT EXISTS edu_sessions (
+        token       TEXT PRIMARY KEY,
+        user_email  TEXT NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        expires_at  TIMESTAMPTZ NOT NULL
+      );
     `);
 
     // Seed edu_categories from any distinct categories already in use,
@@ -282,6 +333,43 @@ app.post('/api/login', async (req, res) => {
   );
 
   res.json({ ok: true, user, hasAccess: isAdminOrMod(user) || parseInt(assignments.rows[0].count) > 0 });
+});
+
+// ─── SSO hand-off from the portal (aradia-time) ──────────────────────────────
+// Exchanges a one-time token (minted by the portal for an already-authenticated
+// user) for an edu session, so the user lands here without re-entering creds.
+app.post('/api/sso', async (req, res) => {
+  try {
+    const token = String((req.body && req.body.token) || '').trim();
+    if (!token) return res.json({ ok: false, reason: 'Missing token' });
+
+    // Atomically consume the token: only one request can flip used_at from NULL.
+    const consume = await pool.query(
+      `UPDATE edu_sso_tokens SET used_at = NOW()
+       WHERE token = $1 AND used_at IS NULL AND expires_at > NOW()
+       RETURNING user_email`,
+      [token]
+    );
+    if (consume.rows.length === 0) return res.json({ ok: false, reason: 'Invalid or expired link' });
+
+    const user = await getUserByEmail(consume.rows[0].user_email);
+    if (!user) return res.json({ ok: false, reason: 'User not found' });
+
+    // Mint a 30-day edu session that stands in for the PIN on subsequent calls.
+    const session = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO edu_sessions (token, user_email, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 days')`,
+      [session, user.email]
+    );
+
+    const assignments = await pool.query(
+      'SELECT COUNT(*) as count FROM edu_assignments WHERE LOWER(user_email)=LOWER($1)', [user.email]
+    );
+    res.json({ ok: true, user, session, hasAccess: isAdminOrMod(user) || parseInt(assignments.rows[0].count) > 0 });
+  } catch (e) {
+    console.error('SSO error:', e);
+    res.json({ ok: false, reason: 'SSO failed' });
+  }
 });
 
 // ─── Modules: List (for assigned user) ──────────────────────────────────────

@@ -112,13 +112,47 @@ function tryAutoLogin() {
   }
 }
 
+// SSO hand-off from the portal: ?sso=<one-time-token>. Exchange it for an edu
+// session and store it where the PIN normally lives, so the user is logged in
+// without typing anything. Any other query params (video/manual deep links) are
+// preserved for enterApp() to act on.
+function trySsoLogin() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('sso');
+  if (!token) return false;
+  fetch('/api/sso', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token })
+  })
+    .then(r => r.json())
+    .then(r => {
+      // Strip the token from the URL regardless of outcome; keep other params.
+      params.delete('sso');
+      const clean = location.pathname + (params.toString() ? '?' + params.toString() : '');
+      history.replaceState(null, '', clean);
+      if (r.ok && r.session) {
+        STATE.email = r.user.email;
+        STATE.pin = r.session;            // session token stands in for the PIN
+        STATE.user = r.user;
+        localStorage.setItem('edu_email', STATE.email);
+        localStorage.setItem('edu_pin', STATE.pin);
+        enterApp();
+      } else {
+        tryAutoLogin();                   // fall back to stored creds / login screen
+      }
+    })
+    .catch(() => { tryAutoLogin(); });
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   ['login_email', 'login_pin'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') doLogin();
     });
   });
-  tryAutoLogin();
+  if (!trySsoLogin()) tryAutoLogin();
 });
 
 function enterApp() {
