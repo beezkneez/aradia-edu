@@ -81,14 +81,26 @@ async function getAuthorizedUser(email, pin) {
 // Same projection as getAuthorizedUser, without a credential check. Only call
 // after the caller's identity has already been proven (e.g. a valid SSO token).
 function shapeUser(u) {
+  // admin_permissions is a JSON string (shared with aradia-time). It maps a
+  // feature key to an access level ("r" | "w" | "rw"). The "edu" key grants
+  // EDU-only moderator rights here WITHOUT making the person a full aradia-time
+  // moderator — set from aradia-time's Permissions page.
+  let perms = {};
+  try {
+    perms = typeof u.admin_permissions === 'string'
+      ? JSON.parse(u.admin_permissions || '{}')
+      : (u.admin_permissions || {});
+  } catch (e) { perms = {}; }
+  const isEduMod = !!perms.edu;
   return {
     id: u.id, email: u.email, name: u.name, type: u.type,
     username: u.username, profile_pic: u.profile_pic,
     preferred_theme: u.preferred_theme,
     isAdmin: u.is_superuser === true || u.type === 'admin' || u.username === 'admin',
-    isModerator: u.type === 'moderator',
+    isModerator: u.type === 'moderator' || isEduMod,
+    isEduMod,
     teaches: u.teaches,
-    admin_permissions: u.admin_permissions
+    admin_permissions: perms
   };
 }
 
@@ -261,6 +273,16 @@ async function initDB() {
         notes TEXT DEFAULT '',
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(user_email, video_id)
+      );
+
+      -- Links a video to one or more manuals (many-to-many). A video can be
+      -- attached to several manuals; a manual can show several videos.
+      CREATE TABLE IF NOT EXISTS edu_manual_videos (
+        id SERIAL PRIMARY KEY,
+        manual_id INT REFERENCES edu_manuals(id) ON DELETE CASCADE,
+        video_id INT REFERENCES edu_videos(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(manual_id, video_id)
       );
 
       -- Category catalog (shared by manuals + videos). applies_to is
@@ -825,6 +847,31 @@ app.post('/api/getManuals', async (req, res) => {
     m.is_favorite = favSet.has(m.id);
   }
 
+  // Attach the videos linked to each manual (for the "Related videos" section
+  // in the manual viewer, and to pre-check the picker in the manual editor).
+  if (manuals.length) {
+    const ids = manuals.map(m => m.id);
+    const links = await pool.query(
+      `SELECT mv.manual_id, v.id, v.title, v.category, v.file_path, v.file_type
+         FROM edu_manual_videos mv
+         JOIN edu_videos v ON v.id = mv.video_id
+        WHERE mv.manual_id = ANY($1::int[])
+        ORDER BY v.title`,
+      [ids]
+    );
+    const byManual = {};
+    for (const row of links.rows) {
+      (byManual[row.manual_id] = byManual[row.manual_id] || []).push({
+        id: row.id, title: row.title, category: row.category,
+        file_path: row.file_path, file_type: row.file_type
+      });
+    }
+    for (const m of manuals) {
+      m.videos = byManual[m.id] || [];
+      m.video_ids = m.videos.map(v => v.id);
+    }
+  }
+
   res.json({ ok: true, manuals });
 });
 
@@ -895,6 +942,30 @@ app.post('/api/getVideos', async (req, res) => {
   );
   const favSet = new Set(favorites.rows.map(f => f.video_id));
   for (const v of videos) v.is_favorite = favSet.has(v.id);
+
+  // Attach the manuals each video is linked to (for the "Appears in" section in
+  // the video viewer, and to pre-check the picker in the video editor).
+  if (videos.length) {
+    const ids = videos.map(v => v.id);
+    const links = await pool.query(
+      `SELECT mv.video_id, m.id, m.title, m.category
+         FROM edu_manual_videos mv
+         JOIN edu_manuals m ON m.id = mv.manual_id
+        WHERE mv.video_id = ANY($1::int[])
+        ORDER BY m.title`,
+      [ids]
+    );
+    const byVideo = {};
+    for (const row of links.rows) {
+      (byVideo[row.video_id] = byVideo[row.video_id] || []).push({
+        id: row.id, title: row.title, category: row.category
+      });
+    }
+    for (const v of videos) {
+      v.manuals = byVideo[v.id] || [];
+      v.manual_ids = v.manuals.map(m => m.id);
+    }
+  }
 
   res.json({ ok: true, videos });
 });
@@ -971,6 +1042,65 @@ app.post('/api/admin/deleteVideo', async (req, res) => {
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
   await pool.query('DELETE FROM edu_videos WHERE id=$1', [req.body.video_id]);
   res.json({ ok: true });
+});
+
+// ─── Admin: Manual ↔ Video links ────────────────────────────────────────────
+// Replace the full set of manuals a video is attached to.
+app.post('/api/admin/setVideoManuals', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const videoId = parseInt(req.body.video_id, 10);
+  if (!videoId) return res.json({ ok: false, reason: 'video_id required' });
+  const manualIds = Array.isArray(req.body.manual_ids)
+    ? req.body.manual_ids.map(n => parseInt(n, 10)).filter(Boolean) : [];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM edu_manual_videos WHERE video_id=$1', [videoId]);
+    for (const mId of manualIds) {
+      await client.query(
+        `INSERT INTO edu_manual_videos (manual_id, video_id) VALUES ($1, $2)
+         ON CONFLICT (manual_id, video_id) DO NOTHING`,
+        [mId, videoId]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, manual_ids: manualIds });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.json({ ok: false, reason: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Replace the full set of videos attached to a manual.
+app.post('/api/admin/setManualVideos', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const manualId = parseInt(req.body.manual_id, 10);
+  if (!manualId) return res.json({ ok: false, reason: 'manual_id required' });
+  const videoIds = Array.isArray(req.body.video_ids)
+    ? req.body.video_ids.map(n => parseInt(n, 10)).filter(Boolean) : [];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM edu_manual_videos WHERE manual_id=$1', [manualId]);
+    for (const vId of videoIds) {
+      await client.query(
+        `INSERT INTO edu_manual_videos (manual_id, video_id) VALUES ($1, $2)
+         ON CONFLICT (manual_id, video_id) DO NOTHING`,
+        [manualId, vId]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, video_ids: videoIds });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.json({ ok: false, reason: e.message });
+  } finally {
+    client.release();
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

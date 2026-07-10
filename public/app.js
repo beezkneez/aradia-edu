@@ -19,6 +19,8 @@ const STATE = {
   favorites: [],
   favoritesFilter: 'all',
   adminModules: [],
+  adminManuals: [],
+  adminVideos: [],
   editingModule: null,
   staffList: [],
 };
@@ -722,9 +724,22 @@ function selectManual(id) {
          </a>
        </div>`;
 
+  const relatedVideos = manual.videos || [];
+  const relatedBar = relatedVideos.length ? `
+    <div class="manual-related-bar" style="flex:0 0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">&#127909; Related videos</span>
+      ${relatedVideos.map(v => `
+        <button class="btn-secondary" style="font-size:13px;padding:6px 12px" onclick="playRelatedVideo(${manual.id}, ${v.id})">
+          &#9654; ${esc(v.title)}
+        </button>`).join('')}
+    </div>` : '';
+
   viewer.innerHTML = `
     <button class="manual-back-btn" onclick="closeManual()" aria-label="Back to list">&larr;</button>
-    <div class="manual-pane">${pdfPane}</div>
+    <div class="manual-pane" style="flex-direction:column">
+      ${relatedBar}
+      <div style="flex:1;min-height:0;width:100%;display:flex">${pdfPane}</div>
+    </div>
     <aside class="manual-notes" id="manual_notes_panel">
       <div class="manual-notes-header">
         <span>My Notes</span>
@@ -754,6 +769,25 @@ function closeManual() {
       <p>Select a manual to view</p>
     </div>`;
   renderManualsList();
+}
+
+// Plays a video that's attached to a manual, in a modal, without leaving the
+// manual. Looks the video up from the manual payload so it works even if the
+// video isn't in the user's (category-filtered) Videos list.
+function playRelatedVideo(manualId, videoId) {
+  const m = STATE.manuals.find(x => x.id === manualId);
+  const v = m && (m.videos || []).find(x => x.id === videoId);
+  if (!v) return;
+  showModal(`
+    <h3 style="margin-bottom:12px">${esc(v.title)}</h3>
+    <div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden">
+      <iframe src="${v.file_path}" allow="autoplay" allowfullscreen
+        style="position:absolute;inset:0;width:100%;height:100%;border:none"></iframe>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Close</button>
+    </div>
+  `);
 }
 
 function toggleManualNotes(open) {
@@ -865,9 +899,22 @@ function selectVideo(id) {
   const viewer = document.getElementById('videos_viewer');
   const playerPane = `<iframe class="manual-frame" src="${video.file_path}" allow="autoplay" allowfullscreen></iframe>`;
 
+  const inManuals = video.manuals || [];
+  const manualsBar = inManuals.length ? `
+    <div class="manual-related-bar" style="flex:0 0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">&#128196; In manuals</span>
+      ${inManuals.map(m => `
+        <button class="btn-secondary" style="font-size:13px;padding:6px 12px" onclick="go('manuals', ${m.id})">
+          ${esc(m.title)}
+        </button>`).join('')}
+    </div>` : '';
+
   viewer.innerHTML = `
     <button class="manual-back-btn" onclick="closeVideo()" aria-label="Back to list">&larr;</button>
-    <div class="manual-pane">${playerPane}</div>
+    <div class="manual-pane" style="flex-direction:column">
+      ${manualsBar}
+      <div style="flex:1;min-height:0;width:100%;display:flex">${playerPane}</div>
+    </div>
     <aside class="manual-notes" id="video_notes_panel">
       <div class="manual-notes-header">
         <span>My Notes</span>
@@ -1478,6 +1525,7 @@ async function deletePage(pageId) {
 async function loadAdminManuals() {
   const r = await api('getManuals');
   if (!r.ok) return;
+  STATE.adminManuals = r.manuals;
 
   const el = document.getElementById('admin_manuals_list');
   if (r.manuals.length === 0) {
@@ -1540,7 +1588,17 @@ async function saveManualDetails(filePath, fileType) {
   if (r.ok) { hideModal(); toast('Manual uploaded!', 'success'); loadAdminManuals(); }
 }
 
-function editManualModal(id, title, desc, category) {
+async function editManualModal(id, title, desc, category) {
+  const manual = (STATE.adminManuals || []).find(m => m.id === id);
+  const selVideoIds = manual ? (manual.video_ids || []) : [];
+  // Need the full videos list to build the picker; reuse the cached admin list,
+  // otherwise fetch it.
+  let videos = STATE.adminVideos;
+  if (!videos || !videos.length) {
+    const vr = await api('getVideos');
+    videos = vr.ok ? vr.videos : [];
+    STATE.adminVideos = videos;
+  }
   showModal(`
     <h3>Edit Manual</h3>
     <div class="form-group">
@@ -1557,6 +1615,12 @@ function editManualModal(id, title, desc, category) {
       <label class="form-label">Description</label>
       <textarea class="form-input" id="edit_manual_desc">${desc}</textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label">Attached Videos</label>
+      <div id="manual_videos_picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px">
+        ${renderLinkPicker(videos, selVideoIds, 'mv-check', 'No videos yet — add one first.')}
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="hideModal()">Cancel</button>
       <button class="btn-primary" onclick="updateManual(${id})">Save</button>
@@ -1568,12 +1632,16 @@ function editManualModal(id, title, desc, category) {
 async function updateManual(id) {
   const catSel = document.getElementById('edit_manual_category').value;
   const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : '';
+  const videoIds = Array.from(
+    document.querySelectorAll('#manual_videos_picker input.mv-check:checked')
+  ).map(c => parseInt(c.value, 10));
   await api('admin/updateManual', {
     manual_id: id,
     title: document.getElementById('edit_manual_title').value.trim(),
     description: document.getElementById('edit_manual_desc').value.trim(),
     category
   });
+  await api('admin/setManualVideos', { manual_id: id, video_ids: videoIds });
   hideModal(); toast('Manual updated', 'success'); loadAdminManuals();
 }
 
@@ -1688,6 +1756,7 @@ async function saveDriveManual() {
 async function loadAdminVideos() {
   const r = await api('getVideos');
   if (!r.ok) return;
+  STATE.adminVideos = r.videos;
 
   const el = document.getElementById('admin_videos_list');
   if (r.videos.length === 0) {
@@ -1764,7 +1833,34 @@ async function saveDriveVideo() {
   }
 }
 
-function editVideoModal(id, title, desc, category) {
+// Renders a scrollable list of toggle rows for linking manuals⇄videos.
+// `items` is [{id,title,category}], `selectedIds` pre-checks matching rows.
+function renderLinkPicker(items, selectedIds, checkClass, emptyLabel) {
+  const sel = new Set((selectedIds || []).map(Number));
+  if (!items || !items.length) {
+    return `<div style="color:var(--text3);padding:8px 2px;font-size:13px">${esc(emptyLabel)}</div>`;
+  }
+  return items.map(it => `
+    <div class="toggle-row">
+      <span>${esc(it.title)}${it.category ? ` <span style="color:var(--text3);font-size:12px">· ${esc(it.category)}</span>` : ''}</span>
+      <label class="admin-toggle">
+        <input type="checkbox" class="${checkClass}" value="${it.id}" ${sel.has(Number(it.id)) ? 'checked' : ''}>
+        <span class="slider"></span>
+      </label>
+    </div>`).join('');
+}
+
+async function editVideoModal(id, title, desc, category) {
+  const video = (STATE.adminVideos || []).find(v => v.id === id);
+  const selManualIds = video ? (video.manual_ids || []) : [];
+  // Need the full manuals list to build the picker; reuse the cached admin
+  // list, otherwise fetch it.
+  let manuals = STATE.adminManuals;
+  if (!manuals || !manuals.length) {
+    const mr = await api('getManuals');
+    manuals = mr.ok ? mr.manuals : [];
+    STATE.adminManuals = manuals;
+  }
   showModal(`
     <h3>Edit Video</h3>
     <div class="form-group">
@@ -1781,6 +1877,12 @@ function editVideoModal(id, title, desc, category) {
       <label class="form-label">Description</label>
       <textarea class="form-input" id="edit_video_desc">${desc}</textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label">Attach to Manuals</label>
+      <div id="video_manuals_picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px">
+        ${renderLinkPicker(manuals, selManualIds, 'vm-check', 'No manuals yet — upload one first.')}
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="hideModal()">Cancel</button>
       <button class="btn-primary" onclick="updateVideo(${id})">Save</button>
@@ -1792,12 +1894,16 @@ function editVideoModal(id, title, desc, category) {
 async function updateVideo(id) {
   const catSel = document.getElementById('edit_video_category').value;
   const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : '';
+  const manualIds = Array.from(
+    document.querySelectorAll('#video_manuals_picker input.vm-check:checked')
+  ).map(c => parseInt(c.value, 10));
   await api('admin/updateVideo', {
     video_id: id,
     title: document.getElementById('edit_video_title').value.trim(),
     description: document.getElementById('edit_video_desc').value.trim(),
     category
   });
+  await api('admin/setVideoManuals', { video_id: id, manual_ids: manualIds });
   hideModal(); toast('Video updated', 'success'); loadAdminVideos();
 }
 
