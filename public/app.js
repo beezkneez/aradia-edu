@@ -21,6 +21,7 @@ const STATE = {
   adminModules: [],
   adminManuals: [],
   adminVideos: [],
+  adminCategories: [],
   editingModule: null,
   staffList: [],
 };
@@ -1075,6 +1076,7 @@ function switchAdminTab(tab) {
   if (tab === 'progress' || tab === 'assignments') populateModuleSelects();
   if (tab === 'manuals') loadAdminManuals();
   if (tab === 'videos') loadAdminVideos();
+  if (tab === 'categories') loadAdminCategories();
 }
 
 async function loadAdminData() {
@@ -1958,6 +1960,65 @@ async function deleteVideo(id) {
   if (!confirm('Delete this video?')) return;
   const r = await api('admin/deleteVideo', { video_id: id });
   if (r.ok) { toast('Video deleted', 'success'); loadAdminVideos(); }
+}
+
+/* ── Category manager (Admin → Categories) ── */
+const APPLIES_LABEL = { both: 'Manuals & Videos', manual: 'Manuals only', video: 'Videos only' };
+
+async function loadAdminCategories() {
+  const r = await api('admin/getAllCategories');
+  if (!r.ok) return;
+  STATE.adminCategories = r.categories;
+  renderAdminCategories();
+}
+
+function renderAdminCategories() {
+  const el = document.getElementById('admin_categories_list');
+  const cats = STATE.adminCategories || [];
+  if (!cats.length) {
+    el.innerHTML = '<div class="empty-state"><p>No categories yet — add one above.</p></div>';
+    return;
+  }
+  el.innerHTML = cats.map(c => {
+    const mc = parseInt(c.manual_count, 10) || 0;
+    const vc = parseInt(c.video_count, 10) || 0;
+    const usage = (mc + vc) === 0 ? 'Unused'
+      : `${mc} manual${mc === 1 ? '' : 's'} · ${vc} video${vc === 1 ? '' : 's'}`;
+    return `
+      <div class="admin-module-row">
+        <div class="admin-module-info">
+          <div class="admin-module-name">${esc(c.name)}</div>
+          <div class="admin-module-meta">${esc(APPLIES_LABEL[c.applies_to] || c.applies_to)} &middot; ${usage}</div>
+        </div>
+        <div class="admin-module-actions">
+          <button class="btn-danger" onclick="deleteAdminCategory(${c.id})">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function addAdminCategory() {
+  const nameEl = document.getElementById('new_category_name');
+  const name = nameEl.value.trim();
+  const applies_to = document.getElementById('new_category_applies').value;
+  if (!name) return toast('Enter a category name', 'error');
+  const r = await api('admin/createCategory', { name, applies_to });
+  if (!r.ok) return toast(r.reason || 'Failed to add category', 'error');
+  nameEl.value = '';
+  toast(r.existed ? 'Category already existed' : 'Category added', 'success');
+  loadAdminCategories();
+}
+
+async function deleteAdminCategory(id) {
+  const c = (STATE.adminCategories || []).find(x => x.id === id);
+  if (!c) return;
+  const usage = (parseInt(c.manual_count, 10) || 0) + (parseInt(c.video_count, 10) || 0);
+  let msg = `Delete the "${c.name}" category?`;
+  if (usage > 0) msg += `\n\n${usage} manual(s)/video(s) use this label — they keep the label, but it won't show in the category dropdowns anymore.`;
+  if (!confirm(msg)) return;
+  const r = await api('admin/deleteCategory', { category_id: id });
+  if (r.ok) { toast('Category deleted', 'success'); loadAdminCategories(); }
+  else toast(r.reason || 'Failed to delete', 'error');
 }
 
 async function deleteAllVideos() {

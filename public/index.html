@@ -162,6 +162,7 @@
         <button class="admin-tab-btn active" data-tab="builder" onclick="switchAdminTab('builder')">Module Builder</button>
         <button class="admin-tab-btn" data-tab="manuals" onclick="switchAdminTab('manuals')">Manuals</button>
         <button class="admin-tab-btn" data-tab="videos" onclick="switchAdminTab('videos')">Videos</button>
+        <button class="admin-tab-btn" data-tab="categories" onclick="switchAdminTab('categories')">Categories</button>
         <button class="admin-tab-btn" data-tab="progress" onclick="switchAdminTab('progress')">Staff Progress</button>
         <button class="admin-tab-btn" data-tab="assignments" onclick="switchAdminTab('assignments')">Assignments</button>
       </div>
@@ -216,6 +217,29 @@
             &#128193; Import a whole Drive folder
           </button>
           <div class="admin-module-list" id="admin_videos_list" style="margin-top:24px"></div>
+        </div>
+
+        <!-- Categories Panel -->
+        <div id="admin_categories" class="admin-panel">
+          <div class="admin-section-header">
+            <h3>Categories</h3>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px">
+            <div style="flex:1;min-width:160px">
+              <label class="form-label">New category name</label>
+              <input class="form-input" id="new_category_name" placeholder="e.g. Aerial Hoop Level 1">
+            </div>
+            <div style="min-width:150px">
+              <label class="form-label">Shows in</label>
+              <select class="form-input" id="new_category_applies">
+                <option value="both">Manuals &amp; Videos</option>
+                <option value="manual">Manuals only</option>
+                <option value="video">Videos only</option>
+              </select>
+            </div>
+            <button class="btn-primary" onclick="addAdminCategory()">Add</button>
+          </div>
+          <div class="admin-module-list" id="admin_categories_list"></div>
         </div>
 
         <!-- Progress Panel -->

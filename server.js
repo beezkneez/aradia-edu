@@ -1130,6 +1130,21 @@ app.post('/api/getCategories', async (req, res) => {
   res.json({ ok: true, categories: r.rows });
 });
 
+// Full category catalog (both surfaces) with how many manuals/videos use each
+// name — for the admin Categories manager.
+app.post('/api/admin/getAllCategories', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const r = await pool.query(
+    `SELECT c.id, c.name, c.applies_to,
+            (SELECT COUNT(*) FROM edu_manuals m WHERE m.category = c.name) AS manual_count,
+            (SELECT COUNT(*) FROM edu_videos v WHERE v.category = c.name) AS video_count
+       FROM edu_categories c
+      ORDER BY c.sort_order, c.name`
+  );
+  res.json({ ok: true, categories: r.rows });
+});
+
 app.post('/api/admin/createCategory', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
