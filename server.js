@@ -1044,6 +1044,16 @@ app.post('/api/admin/deleteVideo', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Delete every video at once. Cascades clean up favorites, notes and
+// manual-video links. Guarded by a confirm token from the client.
+app.post('/api/admin/deleteAllVideos', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  if (req.body.confirm !== 'DELETE_ALL') return res.json({ ok: false, reason: 'Confirmation required' });
+  const r = await pool.query('DELETE FROM edu_videos');
+  res.json({ ok: true, deleted: r.rowCount });
+});
+
 // ─── Admin: Manual ↔ Video links ────────────────────────────────────────────
 // Replace the full set of manuals a video is attached to.
 app.post('/api/admin/setVideoManuals', async (req, res) => {

@@ -1913,6 +1913,20 @@ async function deleteVideo(id) {
   if (r.ok) { toast('Video deleted', 'success'); loadAdminVideos(); }
 }
 
+async function deleteAllVideos() {
+  const count = (STATE.adminVideos || []).length;
+  if (!count) return toast('There are no videos to delete', 'error');
+  if (!confirm(`Delete ALL ${count} videos? This can't be undone.`)) return;
+  if (!confirm('Are you absolutely sure? Every video will be permanently removed.')) return;
+  const r = await api('admin/deleteAllVideos', { confirm: 'DELETE_ALL' });
+  if (r.ok) {
+    toast(`Deleted ${r.deleted} video${r.deleted === 1 ? '' : 's'}`, 'success');
+    loadAdminVideos();
+  } else {
+    toast(r.reason || 'Failed to delete videos', 'error');
+  }
+}
+
 async function loadProgress() {
   const moduleId = document.getElementById('progress_module_select').value;
   const wrap = document.getElementById('progress_table_wrap');
