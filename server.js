@@ -1447,6 +1447,108 @@ app.post('/api/admin/importDriveManuals', async (req, res) => {
   res.json({ ok: true, inserted, skipped, totals: { inserted: inserted.length, skipped: skipped.length } });
 });
 
+// Pull a Drive folder ID out of a pasted URL (or accept a bare ID).
+function extractDriveFolderId(url) {
+  if (!url) return null;
+  const s = String(url).trim();
+  let m = s.match(/\/folders\/([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  m = s.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(s)) return s;
+  return null;
+}
+
+// List all non-trashed files directly inside a Drive folder, following
+// pagination. Requires a Google API key with the Drive API enabled; works on
+// folders shared as "Anyone with the link can view".
+async function driveListFolder(folderId, apiKey) {
+  const files = [];
+  let pageToken = '';
+  do {
+    const params = new URLSearchParams({
+      q: `'${folderId}' in parents and trashed=false`,
+      key: apiKey,
+      fields: 'nextPageToken, files(id,name,mimeType)',
+      pageSize: '1000',
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true',
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`);
+    const data = await resp.json();
+    if (!resp.ok) {
+      const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${resp.status}`;
+      throw new Error(msg);
+    }
+    files.push(...(data.files || []));
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  return files;
+}
+
+// Import every video in a Google Drive folder in one shot.
+app.post('/api/admin/importDriveFolder', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    return res.json({ ok: false, reason: 'Google Drive import is not configured — set GOOGLE_API_KEY on the server.' });
+  }
+  const folderId = extractDriveFolderId(req.body.folder_url);
+  if (!folderId) return res.json({ ok: false, reason: 'That doesn\'t look like a Google Drive folder link.' });
+  const category = String(req.body.category || 'General').trim() || 'General';
+
+  let files;
+  try {
+    files = await driveListFolder(folderId, apiKey);
+  } catch (e) {
+    return res.json({ ok: false, reason: `Could not read that folder: ${e.message}. Make sure it's shared as "Anyone with the link can view".` });
+  }
+
+  // Keep only video files; note anything skipped so the UI can report it.
+  const videos = files.filter(f => (f.mimeType || '').startsWith('video/'));
+  const nonVideos = files.filter(f => (f.mimeType || '') && !(f.mimeType || '').startsWith('video/') && f.mimeType !== 'application/vnd.google-apps.folder');
+
+  const inserted = [];
+  const skipped = [];
+  // Continue existing per-category sort ordering.
+  const sortRow = await pool.query(
+    'SELECT category, COALESCE(MAX(sort_order),0) AS max FROM edu_videos GROUP BY category'
+  );
+  const sortByCategory = {};
+  for (const r of sortRow.rows) sortByCategory[r.category] = parseInt(r.max, 10) || 0;
+
+  for (const f of videos) {
+    const file_path = `https://drive.google.com/file/d/${f.id}/preview`;
+    const existing = await pool.query('SELECT id FROM edu_videos WHERE file_path=$1', [file_path]);
+    if (existing.rows.length > 0) {
+      skipped.push({ title: f.name, reason: 'already imported' });
+      continue;
+    }
+    const title = String(f.name || 'Untitled').replace(/\.[^.]+$/, '');
+    sortByCategory[category] = (sortByCategory[category] || 0) + 1;
+    const ins = await pool.query(
+      `INSERT INTO edu_videos (title, description, category, file_path, file_type, uploaded_by, sort_order)
+       VALUES ($1,'',$2,$3,'drive_video',$4,$5) RETURNING id`,
+      [title, category, file_path, user.email, sortByCategory[category]]
+    );
+    inserted.push({ id: ins.rows[0].id, title });
+  }
+
+  res.json({
+    ok: true,
+    inserted, skipped,
+    totals: {
+      inserted: inserted.length,
+      skipped: skipped.length,
+      nonVideoFiles: nonVideos.length,
+      found: files.length,
+    },
+  });
+});
+
 // ─── Catch-all: serve SPA ───────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

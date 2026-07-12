@@ -1850,6 +1850,53 @@ function renderLinkPicker(items, selectedIds, checkClass, emptyLabel) {
     </div>`).join('');
 }
 
+async function importDriveFolderModal() {
+  showModal(`
+    <h3>Import a Drive Folder</h3>
+    <div class="form-group">
+      <label class="form-label">Google Drive folder link</label>
+      <input class="form-input" id="folder_url" placeholder="https://drive.google.com/drive/folders/...">
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        Folder must be shared as "Anyone with the link can view". Every video file
+        inside is added; the file name becomes the title.
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category for all imported videos</label>
+      <select class="form-input" id="folder_category" onchange="handleCategoryChange(this, 'video')">
+        <option>Loading categories…</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" id="folder_import_btn" onclick="runDriveFolderImport()">Import</button>
+    </div>
+  `);
+  populateCategorySelect('folder_category', 'video');
+}
+
+async function runDriveFolderImport() {
+  const folder_url = document.getElementById('folder_url').value.trim();
+  const catSel = document.getElementById('folder_category').value;
+  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : 'General';
+  if (!folder_url) return toast('Paste a Drive folder link', 'error');
+
+  const btn = document.getElementById('folder_import_btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
+  const r = await api('admin/importDriveFolder', { folder_url, category });
+  if (!r.ok) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Import'; }
+    return toast(r.reason || 'Import failed', 'error');
+  }
+  const t = r.totals;
+  let msg = `Imported ${t.inserted} video${t.inserted === 1 ? '' : 's'}`;
+  if (t.skipped) msg += `, skipped ${t.skipped} already there`;
+  if (t.nonVideoFiles) msg += `, ignored ${t.nonVideoFiles} non-video file${t.nonVideoFiles === 1 ? '' : 's'}`;
+  hideModal();
+  toast(msg, 'success');
+  loadAdminVideos();
+}
+
 async function editVideoModal(id, title, desc, category) {
   const video = (STATE.adminVideos || []).find(v => v.id === id);
   const selManualIds = video ? (video.manual_ids || []) : [];
