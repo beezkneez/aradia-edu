@@ -1601,6 +1601,7 @@ async function editManualModal(id, title, desc, category) {
     videos = vr.ok ? vr.videos : [];
     STATE.adminVideos = videos;
   }
+  const vidCats = [...new Set(videos.map(v => v.category).filter(Boolean))].sort();
   showModal(`
     <h3>Edit Manual</h3>
     <div class="form-group">
@@ -1619,8 +1620,19 @@ async function editManualModal(id, title, desc, category) {
     </div>
     <div class="form-group">
       <label class="form-label">Attached Videos</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <select class="form-input" id="mv_bulk_cat" style="flex:1;min-width:140px">
+          <option value="__ALL__">All videos</option>
+          ${vidCats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+        </select>
+        <button type="button" class="btn-secondary" style="padding:8px 12px;white-space:nowrap" onclick="mvBulkSelect(true)">Select all</button>
+        <button type="button" class="btn-secondary" style="padding:8px 12px;white-space:nowrap" onclick="mvBulkSelect(false)">Clear</button>
+      </div>
       <div id="manual_videos_picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px">
         ${renderLinkPicker(videos, selVideoIds, 'mv-check', 'No videos yet — add one first.')}
+      </div>
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        Pick a category and hit "Select all" to attach every video in it, then Save.
       </div>
     </div>
     <div class="modal-actions">
@@ -1629,6 +1641,19 @@ async function editManualModal(id, title, desc, category) {
     </div>
   `);
   populateCategorySelect('edit_manual_category', 'manual', category);
+}
+
+// Check/uncheck every video row in the manual editor that matches the chosen
+// category (or all of them). Lets you attach a whole level's videos in one tap.
+function mvBulkSelect(check) {
+  const catEl = document.getElementById('mv_bulk_cat');
+  const cat = catEl ? catEl.value : '__ALL__';
+  const boxes = document.querySelectorAll('#manual_videos_picker input.mv-check');
+  let n = 0;
+  boxes.forEach(b => {
+    if (cat === '__ALL__' || b.getAttribute('data-cat') === cat) { b.checked = check; n++; }
+  });
+  toast(`${check ? 'Selected' : 'Cleared'} ${n} video${n === 1 ? '' : 's'} — hit Save to apply`, 'success');
 }
 
 async function updateManual(id) {
@@ -1846,7 +1871,7 @@ function renderLinkPicker(items, selectedIds, checkClass, emptyLabel) {
     <div class="toggle-row">
       <span>${esc(it.title)}${it.category ? ` <span style="color:var(--text3);font-size:12px">· ${esc(it.category)}</span>` : ''}</span>
       <label class="admin-toggle">
-        <input type="checkbox" class="${checkClass}" value="${it.id}" ${sel.has(Number(it.id)) ? 'checked' : ''}>
+        <input type="checkbox" class="${checkClass}" value="${it.id}" data-cat="${esc(it.category || '')}" ${sel.has(Number(it.id)) ? 'checked' : ''}>
         <span class="slider"></span>
       </label>
     </div>`).join('');
