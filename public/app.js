@@ -1899,8 +1899,9 @@ function checklistCheckedNames(containerId) {
 async function addChecklistCategory(containerId, surface) {
   const name = prompt('New category name:');
   if (!name || !name.trim()) return;
-  const applies_to = surface === 'video' ? 'video' : (surface === 'manual' ? 'manual' : 'both');
-  const r = await api('admin/createCategory', { name: name.trim(), applies_to });
+  // Inline categories are general-purpose so they always show in the editor
+  // you made them from (and the other one too).
+  const r = await api('admin/createCategory', { name: name.trim(), applies_to: 'both' });
   if (!r.ok) return toast(r.reason || 'Failed to add category', 'error');
   const keep = checklistCheckedNames(containerId);
   keep.push(r.category.name);

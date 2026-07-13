@@ -1319,9 +1319,19 @@ app.post('/api/admin/createCategory', async (req, res) => {
     res.json({ ok: true, category: r.rows[0] });
   } catch (e) {
     if (e.code === '23505') {
-      // duplicate — fetch and return the existing row so the UI can select it
+      // Duplicate name. Return the existing row, but first broaden its
+      // applies_to so it becomes visible in the surface it's being (re)created
+      // from — otherwise a video-only category can't be picked from the manual
+      // editor and vice versa.
       const ex = await pool.query('SELECT * FROM edu_categories WHERE name=$1', [name]);
-      res.json({ ok: true, category: ex.rows[0], existed: true });
+      let row = ex.rows[0];
+      if (row && applies_to !== row.applies_to && row.applies_to !== 'both') {
+        const upd = await pool.query(
+          `UPDATE edu_categories SET applies_to='both' WHERE id=$1 RETURNING *`, [row.id]
+        );
+        row = upd.rows[0];
+      }
+      res.json({ ok: true, category: row, existed: true });
     } else {
       res.json({ ok: false, reason: e.message });
     }
