@@ -1294,10 +1294,17 @@ app.post('/api/getCategories', async (req, res) => {
 app.post('/api/admin/getAllCategories', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  // Count items tagged via the join table PLUS any that still rely on the text
+  // fallback (no join rows). Counting only the text column would miss every
+  // secondary category of a multi-category item.
   const r = await pool.query(
     `SELECT c.id, c.name, c.applies_to,
-            (SELECT COUNT(*) FROM edu_manuals m WHERE m.category = c.name) AS manual_count,
-            (SELECT COUNT(*) FROM edu_videos v WHERE v.category = c.name) AS video_count
+            (SELECT COUNT(*) FROM edu_manual_categories mc WHERE mc.category_id = c.id)
+            + (SELECT COUNT(*) FROM edu_manuals m WHERE m.category = c.name
+                 AND NOT EXISTS (SELECT 1 FROM edu_manual_categories mc2 WHERE mc2.manual_id = m.id)) AS manual_count,
+            (SELECT COUNT(*) FROM edu_video_categories vc WHERE vc.category_id = c.id)
+            + (SELECT COUNT(*) FROM edu_videos v WHERE v.category = c.name
+                 AND NOT EXISTS (SELECT 1 FROM edu_video_categories vc2 WHERE vc2.video_id = v.id)) AS video_count
        FROM edu_categories c
       ORDER BY c.sort_order, c.name`
   );
