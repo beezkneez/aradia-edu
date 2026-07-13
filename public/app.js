@@ -727,12 +727,18 @@ function selectManual(id) {
 
   const relatedVideos = manual.videos || [];
   const relatedBar = relatedVideos.length ? `
-    <div class="manual-related-bar" style="flex:0 0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)">
-      <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">&#127909; Related videos</span>
-      ${relatedVideos.map(v => `
-        <button class="btn-secondary" style="font-size:13px;padding:6px 12px" onclick="playRelatedVideo(${manual.id}, ${v.id})">
-          &#9654; ${esc(v.title)}
-        </button>`).join('')}
+    <div class="manual-related-bar" style="flex:0 0 auto;position:relative;padding:8px 12px;border-bottom:1px solid var(--border)">
+      <button class="btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px" onclick="toggleRelatedVideos()">
+        <span>&#127909; Related videos (${relatedVideos.length})</span>
+        <span id="related_caret" style="transition:transform .15s">&#9662;</span>
+      </button>
+      <div id="related_videos_panel" style="display:none;position:absolute;left:12px;right:12px;top:100%;z-index:30;margin-top:4px;max-height:55vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.35)">
+        ${relatedVideos.map(v => `
+          <button class="related-video-item" onclick="playRelatedVideo(${manual.id}, ${v.id})"
+            style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;cursor:pointer">
+            <span style="color:var(--accent)">&#9654;</span> ${esc(v.title)}
+          </button>`).join('')}
+      </div>
     </div>` : '';
 
   viewer.innerHTML = `
@@ -775,7 +781,20 @@ function closeManual() {
 // Plays a video that's attached to a manual, in a modal, without leaving the
 // manual. Looks the video up from the manual payload so it works even if the
 // video isn't in the user's (category-filtered) Videos list.
+function toggleRelatedVideos() {
+  const panel = document.getElementById('related_videos_panel');
+  const caret = document.getElementById('related_caret');
+  if (!panel) return;
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  if (caret) caret.style.transform = open ? 'rotate(180deg)' : '';
+}
+
 function playRelatedVideo(manualId, videoId) {
+  const panel = document.getElementById('related_videos_panel');
+  if (panel) { panel.style.display = 'none'; }
+  const caret = document.getElementById('related_caret');
+  if (caret) caret.style.transform = '';
   const m = STATE.manuals.find(x => x.id === manualId);
   const v = m && (m.videos || []).find(x => x.id === videoId);
   if (!v) return;

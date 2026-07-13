@@ -1244,3 +1244,6 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
   }
   .btn-logout::before { content: "\23FB"; font-size: 16px; line-height: 1; }
 }
+
+.related-video-item:hover { background: var(--card-hover); }
+.related-video-item:last-child { border-bottom: none; }
