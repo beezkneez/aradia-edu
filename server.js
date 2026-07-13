@@ -138,6 +138,32 @@ function categoryVisibleTo(category, teachesStr) {
   return false;
 }
 
+// Attach `categories` [{id,name}], `category_ids`, and `category_names` to each
+// item from its join table, falling back to the single text `category` column
+// when the item has no join rows. joinTable/fkCol are fixed internal strings.
+async function attachCategories(items, joinTable, fkCol) {
+  if (!items.length) return;
+  const ids = items.map(i => i.id);
+  const r = await pool.query(
+    `SELECT jt.${fkCol} AS item_id, c.id, c.name
+       FROM ${joinTable} jt JOIN edu_categories c ON c.id = jt.category_id
+      WHERE jt.${fkCol} = ANY($1::int[])
+      ORDER BY c.sort_order, c.name`,
+    [ids]
+  );
+  const byItem = {};
+  for (const row of r.rows) {
+    (byItem[row.item_id] = byItem[row.item_id] || []).push({ id: row.id, name: row.name });
+  }
+  for (const it of items) {
+    let cats = byItem[it.id];
+    if (!cats || !cats.length) cats = it.category ? [{ id: null, name: it.category }] : [];
+    it.categories = cats;
+    it.category_ids = cats.map(c => c.id).filter(x => x != null);
+    it.category_names = cats.map(c => c.name);
+  }
+}
+
 // ─── Database initialization ────────────────────────────────────────────────
 async function initDB() {
   const client = await pool.connect();
@@ -285,6 +311,20 @@ async function initDB() {
         UNIQUE(manual_id, video_id)
       );
 
+      -- Many-to-many: a manual/video can belong to several categories. When an
+      -- item has NO rows here, its single text category column is used as a
+      -- fallback, so older insert paths keep working until edited.
+      CREATE TABLE IF NOT EXISTS edu_manual_categories (
+        manual_id INT REFERENCES edu_manuals(id) ON DELETE CASCADE,
+        category_id INT REFERENCES edu_categories(id) ON DELETE CASCADE,
+        PRIMARY KEY (manual_id, category_id)
+      );
+      CREATE TABLE IF NOT EXISTS edu_video_categories (
+        video_id INT REFERENCES edu_videos(id) ON DELETE CASCADE,
+        category_id INT REFERENCES edu_categories(id) ON DELETE CASCADE,
+        PRIMARY KEY (video_id, category_id)
+      );
+
       -- Per-user page bookmarks within a manual (private, like notes).
       CREATE TABLE IF NOT EXISTS edu_manual_bookmarks (
         id SERIAL PRIMARY KEY,
@@ -340,6 +380,25 @@ async function initDB() {
       INSERT INTO edu_categories (name, applies_to)
       VALUES ('Aradia', 'both')
       ON CONFLICT (name) DO NOTHING;
+    `);
+
+    // Backfill the category join tables from each item's single text category,
+    // but only for items that don't have any join rows yet (so this never
+    // resurrects a category a user has since removed).
+    await client.query(`
+      INSERT INTO edu_manual_categories (manual_id, category_id)
+      SELECT m.id, c.id FROM edu_manuals m
+      JOIN edu_categories c ON c.name = m.category
+      WHERE m.category IS NOT NULL AND m.category <> ''
+        AND NOT EXISTS (SELECT 1 FROM edu_manual_categories mc WHERE mc.manual_id = m.id)
+      ON CONFLICT DO NOTHING;
+
+      INSERT INTO edu_video_categories (video_id, category_id)
+      SELECT v.id, c.id FROM edu_videos v
+      JOIN edu_categories c ON c.name = v.category
+      WHERE v.category IS NOT NULL AND v.category <> ''
+        AND NOT EXISTS (SELECT 1 FROM edu_video_categories vc WHERE vc.video_id = v.id)
+      ON CONFLICT DO NOTHING;
     `);
     console.log('EDU tables initialized');
   } catch (e) {
@@ -840,12 +899,13 @@ app.post('/api/getManuals', async (req, res) => {
   const allManuals = await pool.query(
     'SELECT * FROM edu_manuals ORDER BY category, sort_order, title'
   );
+  await attachCategories(allManuals.rows, 'edu_manual_categories', 'manual_id');
 
-  // Filter by what the user teaches. Admins/mods see everything.
-  // See categoryVisibleTo() for the matching rules.
+  // Filter by what the user teaches. Admins/mods see everything. A manual is
+  // visible if ANY of its categories is visible. See categoryVisibleTo().
   const manuals = isAdminOrMod(user)
     ? allManuals.rows
-    : allManuals.rows.filter(m => categoryVisibleTo(m.category, user.teaches));
+    : allManuals.rows.filter(m => (m.category_names || []).some(cn => categoryVisibleTo(cn, user.teaches)));
 
   const favorites = await pool.query(
     'SELECT manual_id FROM edu_manual_favorites WHERE LOWER(user_email)=LOWER($1)',
@@ -980,9 +1040,10 @@ app.post('/api/getVideos', async (req, res) => {
   const all = await pool.query(
     'SELECT * FROM edu_videos ORDER BY category, sort_order, title'
   );
+  await attachCategories(all.rows, 'edu_video_categories', 'video_id');
   const videos = isAdminOrMod(user)
     ? all.rows
-    : all.rows.filter(v => categoryVisibleTo(v.category, user.teaches));
+    : all.rows.filter(v => (v.category_names || []).some(cn => categoryVisibleTo(cn, user.teaches)));
 
   const favorites = await pool.query(
     'SELECT video_id FROM edu_video_favorites WHERE LOWER(user_email)=LOWER($1)',
@@ -1159,6 +1220,56 @@ app.post('/api/admin/setManualVideos', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// Replace the full set of categories on a manual or video. `kind` picks the
+// table. Also syncs the item's legacy text `category` to the first selected
+// name so any code still reading that column stays sensible.
+async function setItemCategories(res, kind, itemId, categoryIds) {
+  const cfg = kind === 'video'
+    ? { join: 'edu_video_categories', fk: 'video_id', table: 'edu_videos' }
+    : { join: 'edu_manual_categories', fk: 'manual_id', table: 'edu_manuals' };
+  const ids = Array.isArray(categoryIds) ? categoryIds.map(n => parseInt(n, 10)).filter(Boolean) : [];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM ${cfg.join} WHERE ${cfg.fk}=$1`, [itemId]);
+    for (const cid of ids) {
+      await client.query(
+        `INSERT INTO ${cfg.join} (${cfg.fk}, category_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+        [itemId, cid]
+      );
+    }
+    let name = '';
+    if (ids.length) {
+      const nr = await client.query('SELECT name FROM edu_categories WHERE id=$1', [ids[0]]);
+      name = nr.rows[0] ? nr.rows[0].name : '';
+    }
+    await client.query(`UPDATE ${cfg.table} SET category=$1 WHERE id=$2`, [name, itemId]);
+    await client.query('COMMIT');
+    res.json({ ok: true, category_ids: ids });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.json({ ok: false, reason: e.message });
+  } finally {
+    client.release();
+  }
+}
+
+app.post('/api/admin/setManualCategories', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const manualId = parseInt(req.body.manual_id, 10);
+  if (!manualId) return res.json({ ok: false, reason: 'manual_id required' });
+  await setItemCategories(res, 'manual', manualId, req.body.category_ids);
+});
+
+app.post('/api/admin/setVideoCategories', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const videoId = parseInt(req.body.video_id, 10);
+  if (!videoId) return res.json({ ok: false, reason: 'video_id required' });
+  await setItemCategories(res, 'video', videoId, req.body.category_ids);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

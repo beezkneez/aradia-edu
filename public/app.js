@@ -652,8 +652,15 @@ async function loadManuals() {
   renderManualsList();
 }
 
+// Category names for an item, preferring the multi-category list and falling
+// back to the single text category.
+function catNames(item) {
+  if (item && item.category_names && item.category_names.length) return item.category_names;
+  return item && item.category ? [item.category] : [];
+}
+
 function renderManualFilters() {
-  const categories = ['All', ...new Set(STATE.manuals.map(m => m.category))];
+  const categories = ['All', ...new Set(STATE.manuals.flatMap(catNames))];
   const el = document.getElementById('manuals_filter');
   el.innerHTML = categories.map(c => {
     const key = c === 'All' ? 'all' : c;
@@ -674,12 +681,12 @@ function renderManualsList() {
   const search = (document.getElementById('manuals_search').value || '').toLowerCase();
   let filtered = STATE.manuals;
 
-  if (STATE.manualsFilter !== 'all') filtered = filtered.filter(m => m.category === STATE.manualsFilter);
+  if (STATE.manualsFilter !== 'all') filtered = filtered.filter(m => catNames(m).includes(STATE.manualsFilter));
   if (search) {
     filtered = filtered.filter(m =>
       m.title.toLowerCase().includes(search) ||
       m.description.toLowerCase().includes(search) ||
-      m.category.toLowerCase().includes(search)
+      catNames(m).join(' ').toLowerCase().includes(search)
     );
   }
 
@@ -700,7 +707,7 @@ function renderManualsList() {
       <div class="manual-icon">${m.file_type === 'pdf' ? '&#128196;' : '&#128195;'}</div>
       <div class="manual-info">
         <div class="manual-title">${esc(m.title)}</div>
-        <div class="manual-category">${esc(m.category)}</div>
+        <div class="manual-category">${esc(catNames(m).join(' · '))}</div>
       </div>
       <button class="manual-fav ${m.is_favorite ? 'favorited' : ''}" onclick="event.stopPropagation();toggleFavorite(${m.id})">
         ${m.is_favorite ? '&#9733;' : '&#9734;'}
@@ -963,7 +970,7 @@ async function loadVideos() {
 }
 
 function renderVideoFilters() {
-  const categories = ['All', ...new Set(STATE.videos.map(v => v.category))];
+  const categories = ['All', ...new Set(STATE.videos.flatMap(catNames))];
   const el = document.getElementById('videos_filter');
   el.innerHTML = categories.map(c => {
     const key = c.toLowerCase();
@@ -983,9 +990,10 @@ function filterVideos() { renderVideosList(); }
 function renderVideosList() {
   const search = (document.getElementById('videos_search').value || '').toLowerCase();
   let filtered = STATE.videos;
-  if (STATE.videosFilter !== 'all') filtered = filtered.filter(v => v.category.toLowerCase() === STATE.videosFilter);
+  if (STATE.videosFilter !== 'all') filtered = filtered.filter(v => catNames(v).some(cn => cn.toLowerCase() === STATE.videosFilter));
   if (search) filtered = filtered.filter(v =>
-    v.title.toLowerCase().includes(search) || (v.description || '').toLowerCase().includes(search)
+    v.title.toLowerCase().includes(search) || (v.description || '').toLowerCase().includes(search) ||
+    catNames(v).join(' ').toLowerCase().includes(search)
   );
 
   const el = document.getElementById('videos_list');
@@ -999,7 +1007,7 @@ function renderVideosList() {
       <div class="manual-icon">&#127909;</div>
       <div class="manual-info">
         <div class="manual-title">${esc(v.title)}</div>
-        <div class="manual-category">${esc(v.category)}</div>
+        <div class="manual-category">${esc(catNames(v).join(' · '))}</div>
       </div>
       <button class="manual-fav ${v.is_favorite ? 'favorited' : ''}" onclick="event.stopPropagation();toggleVideoFav(${v.id})">
         &#9733;
@@ -1158,7 +1166,7 @@ function renderFavoritesList() {
         <div class="manual-icon">${icon}</div>
         <div class="manual-info">
           <div class="manual-title">${esc(f.title)}</div>
-          <div class="manual-category">${typeLabel} &middot; ${esc(f.category)}</div>
+          <div class="manual-category">${typeLabel} &middot; ${esc(catNames(f).join(' · ') || f.category || '')}</div>
         </div>
         <button class="manual-fav favorited" onclick="event.stopPropagation();unfavoriteFromList('${f._type}', ${f.id})">
           &#9733;
@@ -1654,7 +1662,7 @@ async function loadAdminManuals() {
     <div class="admin-module-row">
       <div class="admin-module-info">
         <div class="admin-module-name">${esc(m.title)}</div>
-        <div class="admin-module-meta">${esc(m.category)} &middot; ${m.file_type.toUpperCase()}</div>
+        <div class="admin-module-meta">${esc(catNames(m).join(' · ') || 'No category')} &middot; ${m.file_type.toUpperCase()}</div>
       </div>
       <div class="admin-module-actions">
         <button class="btn-secondary" onclick="editManualModal(${m.id}, '${esc(m.title)}', '${esc(m.description || '')}', '${esc(m.category)}')">Edit</button>
@@ -1716,7 +1724,7 @@ async function editManualModal(id, title, desc, category) {
     videos = vr.ok ? vr.videos : [];
     STATE.adminVideos = videos;
   }
-  const vidCats = [...new Set(videos.map(v => v.category).filter(Boolean))].sort();
+  const vidCats = [...new Set(videos.flatMap(catNames))].sort();
   showModal(`
     <h3>Edit Manual</h3>
     <div class="form-group">
@@ -1724,10 +1732,9 @@ async function editManualModal(id, title, desc, category) {
       <input class="form-input" id="edit_manual_title" value="${title}">
     </div>
     <div class="form-group">
-      <label class="form-label">Category</label>
-      <select class="form-input" id="edit_manual_category" onchange="handleCategoryChange(this, 'manual')">
-        <option>Loading categories…</option>
-      </select>
+      <label class="form-label">Categories</label>
+      <div id="edit_manual_cats" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px"><div style="padding:8px;color:var(--text3);font-size:13px">Loading…</div></div>
+      <button type="button" class="btn-secondary" style="margin-top:6px;font-size:13px" onclick="addChecklistCategory('edit_manual_cats','manual')">+ New category</button>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -1759,7 +1766,7 @@ async function editManualModal(id, title, desc, category) {
       <button class="btn-primary" onclick="updateManual(${id})">Save</button>
     </div>
   `);
-  populateCategorySelect('edit_manual_category', 'manual', category);
+  populateCategoryChecklist('edit_manual_cats', 'manual', manual ? catNames(manual) : (category ? [category] : []));
 }
 
 // The videos each POLE manual (levels 1-5) teaches, extracted from the manual
@@ -1820,23 +1827,23 @@ function mvBulkSelect(check) {
   const boxes = document.querySelectorAll('#manual_videos_picker input.mv-check');
   let n = 0;
   boxes.forEach(b => {
-    if (cat === '__ALL__' || b.getAttribute('data-cat') === cat) { b.checked = check; n++; }
+    const cats = (b.getAttribute('data-cat') || '').split('|');
+    if (cat === '__ALL__' || cats.includes(cat)) { b.checked = check; n++; }
   });
   toast(`${check ? 'Selected' : 'Cleared'} ${n} video${n === 1 ? '' : 's'} — hit Save to apply`, 'success');
 }
 
 async function updateManual(id) {
-  const catSel = document.getElementById('edit_manual_category').value;
-  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : '';
+  const categoryIds = checklistCheckedIds('edit_manual_cats');
   const videoIds = Array.from(
     document.querySelectorAll('#manual_videos_picker input.mv-check:checked')
   ).map(c => parseInt(c.value, 10));
   await api('admin/updateManual', {
     manual_id: id,
     title: document.getElementById('edit_manual_title').value.trim(),
-    description: document.getElementById('edit_manual_desc').value.trim(),
-    category
+    description: document.getElementById('edit_manual_desc').value.trim()
   });
+  await api('admin/setManualCategories', { manual_id: id, category_ids: categoryIds });
   await api('admin/setManualVideos', { manual_id: id, video_ids: videoIds });
   hideModal(); toast('Manual updated', 'success'); loadAdminManuals();
 }
@@ -1858,6 +1865,47 @@ function extractDriveFileId(url) {
   if (m) return m[1];
   if (/^[a-zA-Z0-9_-]{20,}$/.test(trimmed)) return trimmed;
   return null;
+}
+
+// Renders a checklist (toggle rows) of all categories for a surface, checking
+// those whose NAME is in selectedNames (works for both join-backed and
+// text-fallback categories). Checkboxes carry value=id and data-name.
+async function populateCategoryChecklist(containerId, surface, selectedNames) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const r = await api('getCategories', { for: surface });
+  const cats = r.ok ? r.categories : [];
+  const sel = new Set((selectedNames || []).map(n => String(n).toLowerCase()));
+  el.innerHTML = cats.length ? cats.map(c => `
+    <div class="toggle-row">
+      <span>${esc(c.name)}</span>
+      <label class="admin-toggle">
+        <input type="checkbox" value="${c.id}" data-name="${esc(c.name)}" ${sel.has(c.name.toLowerCase()) ? 'checked' : ''}>
+        <span class="slider"></span>
+      </label>
+    </div>`).join('') : '<div style="color:var(--text3);padding:8px 2px;font-size:13px">No categories yet — add one below.</div>';
+}
+
+function checklistCheckedIds(containerId) {
+  return Array.from(document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`))
+    .map(c => parseInt(c.value, 10));
+}
+function checklistCheckedNames(containerId) {
+  return Array.from(document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`))
+    .map(c => c.getAttribute('data-name'));
+}
+
+// Add a brand-new category from within a checklist, preserving current picks.
+async function addChecklistCategory(containerId, surface) {
+  const name = prompt('New category name:');
+  if (!name || !name.trim()) return;
+  const applies_to = surface === 'video' ? 'video' : (surface === 'manual' ? 'manual' : 'both');
+  const r = await api('admin/createCategory', { name: name.trim(), applies_to });
+  if (!r.ok) return toast(r.reason || 'Failed to add category', 'error');
+  const keep = checklistCheckedNames(containerId);
+  keep.push(r.category.name);
+  await populateCategoryChecklist(containerId, surface, keep);
+  toast(r.existed ? 'Category already existed' : 'Category added', 'success');
 }
 
 async function populateCategorySelect(elementId, surface, selectedName) {
@@ -1964,7 +2012,7 @@ async function loadAdminVideos() {
     <div class="admin-module-row">
       <div class="admin-module-info">
         <div class="admin-module-name">${esc(v.title)}</div>
-        <div class="admin-module-meta">${esc(v.category)}</div>
+        <div class="admin-module-meta">${esc(catNames(v).join(' · ') || 'No category')}</div>
       </div>
       <div class="admin-module-actions">
         <button class="btn-secondary" onclick="editVideoModal(${v.id}, '${esc(v.title)}', '${esc(v.description || '')}', '${esc(v.category)}')">Edit</button>
@@ -2036,14 +2084,17 @@ function renderLinkPicker(items, selectedIds, checkClass, emptyLabel) {
   if (!items || !items.length) {
     return `<div style="color:var(--text3);padding:8px 2px;font-size:13px">${esc(emptyLabel)}</div>`;
   }
-  return items.map(it => `
+  return items.map(it => {
+    const cats = catNames(it);
+    return `
     <div class="toggle-row">
-      <span>${esc(it.title)}${it.category ? ` <span style="color:var(--text3);font-size:12px">· ${esc(it.category)}</span>` : ''}</span>
+      <span>${esc(it.title)}${cats.length ? ` <span style="color:var(--text3);font-size:12px">· ${esc(cats.join(', '))}</span>` : ''}</span>
       <label class="admin-toggle">
-        <input type="checkbox" class="${checkClass}" value="${it.id}" data-cat="${esc(it.category || '')}" data-title="${esc(it.title || '')}" ${sel.has(Number(it.id)) ? 'checked' : ''}>
+        <input type="checkbox" class="${checkClass}" value="${it.id}" data-cat="${esc(cats.join('|'))}" data-title="${esc(it.title || '')}" ${sel.has(Number(it.id)) ? 'checked' : ''}>
         <span class="slider"></span>
       </label>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function importDriveFolderModal() {
@@ -2111,10 +2162,9 @@ async function editVideoModal(id, title, desc, category) {
       <input class="form-input" id="edit_video_title" value="${title}">
     </div>
     <div class="form-group">
-      <label class="form-label">Category</label>
-      <select class="form-input" id="edit_video_category" onchange="handleCategoryChange(this, 'video')">
-        <option>Loading categories…</option>
-      </select>
+      <label class="form-label">Categories</label>
+      <div id="edit_video_cats" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px"><div style="padding:8px;color:var(--text3);font-size:13px">Loading…</div></div>
+      <button type="button" class="btn-secondary" style="margin-top:6px;font-size:13px" onclick="addChecklistCategory('edit_video_cats','video')">+ New category</button>
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
@@ -2131,21 +2181,20 @@ async function editVideoModal(id, title, desc, category) {
       <button class="btn-primary" onclick="updateVideo(${id})">Save</button>
     </div>
   `);
-  populateCategorySelect('edit_video_category', 'video', category);
+  populateCategoryChecklist('edit_video_cats', 'video', video ? catNames(video) : (category ? [category] : []));
 }
 
 async function updateVideo(id) {
-  const catSel = document.getElementById('edit_video_category').value;
-  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : '';
+  const categoryIds = checklistCheckedIds('edit_video_cats');
   const manualIds = Array.from(
     document.querySelectorAll('#video_manuals_picker input.vm-check:checked')
   ).map(c => parseInt(c.value, 10));
   await api('admin/updateVideo', {
     video_id: id,
     title: document.getElementById('edit_video_title').value.trim(),
-    description: document.getElementById('edit_video_desc').value.trim(),
-    category
+    description: document.getElementById('edit_video_desc').value.trim()
   });
+  await api('admin/setVideoCategories', { video_id: id, category_ids: categoryIds });
   await api('admin/setVideoManuals', { video_id: id, manual_ids: manualIds });
   hideModal(); toast('Video updated', 'success'); loadAdminVideos();
 }
