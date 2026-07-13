@@ -5,7 +5,7 @@
 const STATE = {
   email: '', pin: '',
   user: null,
-  currentPage: 'modules',
+  currentPage: 'manuals',
   viewerModule: null,
   viewerChapters: [],
   viewerFlatPages: [],
@@ -190,7 +190,7 @@ function enterApp() {
     history.replaceState(null, '', location.pathname);
     go('manuals', manualId);
   } else {
-    go('modules');
+    go('manuals');
   }
 }
 
