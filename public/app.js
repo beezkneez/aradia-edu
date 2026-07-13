@@ -2111,10 +2111,48 @@ function renderAdminCategories() {
           <div class="admin-module-meta">${esc(APPLIES_LABEL[c.applies_to] || c.applies_to)} &middot; ${usage}</div>
         </div>
         <div class="admin-module-actions">
+          <button class="btn-secondary" onclick="editAdminCategory(${c.id})">Edit</button>
           <button class="btn-danger" onclick="deleteAdminCategory(${c.id})">Delete</button>
         </div>
       </div>`;
   }).join('');
+}
+
+function editAdminCategory(id) {
+  const c = (STATE.adminCategories || []).find(x => x.id === id);
+  if (!c) return;
+  const opt = (val, label) => `<option value="${val}" ${c.applies_to === val ? 'selected' : ''}>${label}</option>`;
+  showModal(`
+    <h3>Edit Category</h3>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input class="form-input" id="edit_category_name" value="${esc(c.name)}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Shows in</label>
+      <select class="form-input" id="edit_category_applies">
+        ${opt('both', 'Manuals &amp; Videos')}${opt('manual', 'Manuals only')}${opt('video', 'Videos only')}
+      </select>
+    </div>
+    <div class="upload-hint" style="color:var(--text3);font-size:12px;margin-bottom:12px">
+      Renaming also updates every manual and video currently using this category.
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="updateAdminCategory(${id})">Save</button>
+    </div>
+  `);
+}
+
+async function updateAdminCategory(id) {
+  const name = document.getElementById('edit_category_name').value.trim();
+  const applies_to = document.getElementById('edit_category_applies').value;
+  if (!name) return toast('Enter a category name', 'error');
+  const r = await api('admin/updateCategory', { category_id: id, name, applies_to });
+  if (!r.ok) return toast(r.reason || 'Failed to update', 'error');
+  hideModal();
+  toast('Category updated', 'success');
+  loadAdminCategories();
 }
 
 async function addAdminCategory() {

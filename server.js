@@ -1169,6 +1169,38 @@ app.post('/api/admin/createCategory', async (req, res) => {
   }
 });
 
+// Rename a category and/or change which surfaces it applies to. Renaming also
+// retags any manuals/videos using the old name so nothing is orphaned.
+app.post('/api/admin/updateCategory', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const id = parseInt(req.body.category_id, 10);
+  const name = String(req.body.name || '').trim();
+  if (!id || !name) return res.json({ ok: false, reason: 'Name required' });
+  const applies_to = ['manual', 'video', 'both'].includes(req.body.applies_to)
+    ? req.body.applies_to : 'both';
+  const cur = await pool.query('SELECT name FROM edu_categories WHERE id=$1', [id]);
+  if (!cur.rows.length) return res.json({ ok: false, reason: 'Category not found' });
+  const oldName = cur.rows[0].name;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE edu_categories SET name=$1, applies_to=$2 WHERE id=$3', [name, applies_to, id]);
+    if (oldName !== name) {
+      await client.query('UPDATE edu_manuals SET category=$1 WHERE category=$2', [name, oldName]);
+      await client.query('UPDATE edu_videos SET category=$1 WHERE category=$2', [name, oldName]);
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    if (e.code === '23505') return res.json({ ok: false, reason: 'A category with that name already exists' });
+    res.json({ ok: false, reason: e.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.post('/api/admin/deleteCategory', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
