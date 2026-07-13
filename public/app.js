@@ -1620,6 +1620,10 @@ async function editManualModal(id, title, desc, category) {
     </div>
     <div class="form-group">
       <label class="form-label">Attached Videos</label>
+      ${/pole\s*[1-5]/i.test(title) ? `
+      <button type="button" class="btn-primary" style="width:100%;margin-bottom:8px" onclick="autoSelectManualVideos()">
+        &#10024; Auto-select videos taught in this manual
+      </button>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
         <select class="form-input" id="mv_bulk_cat" style="flex:1;min-width:140px">
           <option value="__ALL__">All videos</option>
@@ -1641,6 +1645,56 @@ async function editManualModal(id, title, desc, category) {
     </div>
   `);
   populateCategorySelect('edit_manual_category', 'manual', category);
+}
+
+// The videos each POLE manual (levels 1-5) teaches, extracted from the manual
+// PDFs (every video is referenced as "<Move Name> Video"). Used by the manual
+// editor's "Auto-select" button to tick the matching videos in one tap.
+const POLE_LEVEL_VIDEOS = {
+  1: ["Body Walk Down", "Basic Get Down", "Cat Get Down", "Push Ups", "Cat Push Ups", "Cat Spirals", "Rocking Cats", "Kneeling & Travelling Hip Circles", "One Legged & Two Legged Clock", "Crickets", "Leg Splay", "Mud Flap", "Peek A Boos", "Sexy Bicycle", "Sensual Get Up", "Tuck To Peel Up", "Assisted Pole Ups", "Body Waves", "Cupid Crunches", "Squat with back to pole", "Step Kick Squat", "Backwards Spin", "Big Dip", "Chair Spin", "Fankick", "Firefighter Spin", "Front Hook Spin", "L Turns", "Pole Over", "Pole Slide", "Pole Turns", "Side to Side", "Walking around the pole", "Pole 1 Routine"],
+  2: ["Aradia Push Ups", "Reverse Crunch to Splay", "Shoulder stand", "Backwards Shoulder Roll", "Floor Fankicks", "Cartwheel Get Up", "Lunge Sweep Get Up", "Mini Firefighter Get Up", "Split Grip Get Up", "Baseball Climb", "Basic Inversion", "Climb Prep Squats - on the floor", "Inversion Preps - Laying Down", "Inversion preps from seated and knees", "Pole Hold", "Pole Sit - Crossed Leg", "Pole Sit - Straight Leg", "Shoulder Mount Prep - Kneeling", "Shoulder Mount Prep - Laying Down", "Shoulder Mount Preps- Standing", "Split Grip Preps", "Static Diamond", "Static Boomerang", "Static Corkscrew", "Upright Crucifix", "Cupid Crunches", "Jump & Hold", "Jump & Spin", "Pole Burpees", "Ballerina Spin", "Straight Leg Ballerina Spin", "Big Dip to Backwards Spin", "Boomerang Spin", "Chair to Front Hook Spin", "Cross Leg Chair Spin", "Kneeling Chair Spin", "Passe Chair Spin", "Compass Spin", "Corkscrew Spin", "Diamond Spin", "1 handed Front Hook Spin", "Attitude Firefighter", "Firefighter Martini Spin", "Straight Leg Firefighter Spin", "One Hand Firefighter Spin", "Pole Over Spin", "Advanced Pole Over Spin", "Side Spin", "Backwards Sunwheel Spin", "Sunwheel Spin", "Switcharoo Spin", "Body Walk Down with the Pole", "Half Moons", "Figure 8's", "Pirouettes", "S Steps"],
+  3: ["Aerial Invert Preps", "Exploding V", "Flag Preps", "Handstand Preps", "Helicopter Preps", "Side Strength Hold", "Static Sunwheel", "Forearm Climb", "Side Climb", "Fankick to Crossed Leg Pole Sit", "Fankick to Pole Sit Layout", "Fankick to Straight Leg Pole Sit", "Martini Sit", "Pole Sit Layout", "Scissor Sit", "Chair - 1 handed", "Chimney Sweep Spin", "Fairy Walks", "Foldover Ballerina", "Juliette Spin", "Spiral Spin", "Butterfly", "Descending Angel", "Helicopter", "Inverted Crucifix", "Invert To Cartwheel", "Invert to Snake Out", "Invert to Superman Legs Out", "Invert to Twist Out", "Outside Leg knee Hook", "Upside down Chair", "Birds Nest from the Floor", "Bow and Arrow", "Genie from the Floor", "Hood Ornament", "Jamilla", "Jasmine from the floor", "Straight Leg Jasmine"],
+  4: ["Aerial Boomerang Hold", "Aerial Invert", "Caterpillar Bodywaves", "Flag", "Side Split Prep", "Shoulder Mount Inversion", "Reiko", "Reverse Shoulder Mount", "Superman Preps", "No Leg Climb", "Swing Climb", "Ball Sit", "Remi Sit", "Russian Sit", "Scissor Sit Switches", "Twisted Wrist Seat", "Wrist Seat", "Backdrop", "Cobra", "Hawaii", "Pretzel", "Rockstar", "Spiral to Chair", "Birds Nest", "Butterfly to Bow and Arrow", "Butterfly to Inverted Split", "Croissant", "Cross Ankle Release", "Cupid", "Dragonfly", "Extended Butterfly", "Flatline Scorpio", "Genie", "Hip Hold Pike & Straddle", "Inside Leg Hand", "Inverted D", "Martini Sit", "Outside Leg Hang", "Sleeping Beauty", "Stargazer", "Superman from Jasmine"],
+  5: ["Aerial Shoulder Mount", "Body Switch", "Funny Grip Fankick", "Iguana Deadlift", "Jade Split from the Floor", "Baby & Machine Gun", "Reiko to Step Up", "Shoulder Mount Grip Variations", "Twisted Grip Pole Handstand", "Upright Elbow Pit Boomerang & Diamond", "Caterpillar Body waves & Climb", "Circus Climb", "Devils Point Shuffle", "No Leg Climb", "Backwards Spin to Invert", "Oona Spin", "Rockstar Spin", "Allegra", "Archer", "Ayesha grip variations", "Ball Drop", "Brass Monkey From Ayesha", "Brass Monkey from Croissant", "Brass Monkey from Kick Up", "Gargoyle", "Holly Drop from Jasmine", "Iguana Deadlift/Kick Up", "Jade & Dutchess", "Knee Hold", "Leg Switches", "Pegasus", "Reverse Ayesha", "Russian Layback", "Seahorse", "Side Saddle Superman", "Skittles Drop", "Superman From Jasmine"],
+};
+
+// Normalize a name for fuzzy matching: lowercase, punctuation → spaces, drop a
+// trailing "video", collapse whitespace.
+function _normVideoName(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/\.[a-z0-9]{2,4}$/, '')      // strip a file extension
+    .replace(/\bvideo\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Tick every video in the manual editor whose title matches a move taught by
+// this manual's pole level (detected from the title). Reports what it matched.
+function autoSelectManualVideos() {
+  const titleEl = document.getElementById('edit_manual_title');
+  const title = titleEl ? titleEl.value : '';
+  const m = title.match(/pole\s*([1-5])/i);
+  if (!m) {
+    return toast('Auto-select only works on manuals titled "Pole 1"–"Pole 5"', 'error');
+  }
+  const level = parseInt(m[1], 10);
+  const moves = (POLE_LEVEL_VIDEOS[level] || []).map(_normVideoName).filter(Boolean);
+  const boxes = document.querySelectorAll('#manual_videos_picker input.mv-check');
+  const matchedMoves = new Set();
+  let ticked = 0;
+  boxes.forEach(b => {
+    const vt = _normVideoName(b.getAttribute('data-title'));
+    if (!vt) return;
+    const hit = moves.find(mv => mv === vt ||
+      (mv.length >= 4 && vt.length >= 4 && (vt.includes(mv) || mv.includes(vt))));
+    if (hit) { b.checked = true; ticked++; matchedMoves.add(hit); }
+  });
+  const missing = moves.length - matchedMoves.size;
+  toast(`Pole ${level}: ticked ${ticked} video${ticked === 1 ? '' : 's'}` +
+    (missing > 0 ? ` · ${missing} taught move${missing === 1 ? '' : 's'} had no matching video` : '') +
+    ' — review, then Save', 'success');
 }
 
 // Check/uncheck every video row in the manual editor that matches the chosen
@@ -1871,7 +1925,7 @@ function renderLinkPicker(items, selectedIds, checkClass, emptyLabel) {
     <div class="toggle-row">
       <span>${esc(it.title)}${it.category ? ` <span style="color:var(--text3);font-size:12px">· ${esc(it.category)}</span>` : ''}</span>
       <label class="admin-toggle">
-        <input type="checkbox" class="${checkClass}" value="${it.id}" data-cat="${esc(it.category || '')}" ${sel.has(Number(it.id)) ? 'checked' : ''}>
+        <input type="checkbox" class="${checkClass}" value="${it.id}" data-cat="${esc(it.category || '')}" data-title="${esc(it.title || '')}" ${sel.has(Number(it.id)) ? 'checked' : ''}>
         <span class="slider"></span>
       </label>
     </div>`).join('');
