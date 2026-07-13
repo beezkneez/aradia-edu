@@ -732,12 +732,17 @@ function selectManual(id) {
         <span>&#127909; Related videos (${relatedVideos.length})</span>
         <span id="related_caret" style="transition:transform .15s">&#9662;</span>
       </button>
-      <div id="related_videos_panel" style="display:none;position:absolute;left:12px;right:12px;top:100%;z-index:30;margin-top:4px;max-height:55vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.35)">
-        ${relatedVideos.map(v => `
-          <button class="related-video-item" onclick="playRelatedVideo(${manual.id}, ${v.id})"
-            style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;cursor:pointer">
-            <span style="color:var(--accent)">&#9654;</span> ${esc(v.title)}
-          </button>`).join('')}
+      <div id="related_videos_panel" style="display:none;position:absolute;left:12px;right:12px;top:100%;z-index:30;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.35);overflow:hidden">
+        <input id="related_search" type="text" placeholder="Search videos…" oninput="filterRelatedVideos()"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:none;border-bottom:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:14px;outline:none">
+        <div id="related_videos_scroll" style="max-height:48vh;overflow-y:auto">
+          ${relatedVideos.map(v => `
+            <button class="related-video-item" data-search="${esc((v.title || '').toLowerCase())}" onclick="playRelatedVideo(${manual.id}, ${v.id})"
+              style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;cursor:pointer">
+              <span style="color:var(--accent)">&#9654;</span> ${esc(v.title)}
+            </button>`).join('')}
+          <div id="related_no_match" style="display:none;padding:12px 14px;color:var(--text3);font-size:13px">No videos match.</div>
+        </div>
       </div>
     </div>` : '';
 
@@ -788,6 +793,23 @@ function toggleRelatedVideos() {
   const open = panel.style.display === 'none';
   panel.style.display = open ? 'block' : 'none';
   if (caret) caret.style.transform = open ? 'rotate(180deg)' : '';
+  if (open) {
+    const s = document.getElementById('related_search');
+    if (s) setTimeout(() => s.focus(), 50);
+  }
+}
+
+// Filter the related-videos dropdown as the user types.
+function filterRelatedVideos() {
+  const q = (document.getElementById('related_search').value || '').toLowerCase().trim();
+  let shown = 0;
+  document.querySelectorAll('#related_videos_scroll .related-video-item').forEach(it => {
+    const match = !q || (it.getAttribute('data-search') || '').includes(q);
+    it.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  const none = document.getElementById('related_no_match');
+  if (none) none.style.display = shown === 0 ? 'block' : 'none';
 }
 
 function playRelatedVideo(manualId, videoId) {
