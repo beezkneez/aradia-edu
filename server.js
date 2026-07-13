@@ -285,6 +285,16 @@ async function initDB() {
         UNIQUE(manual_id, video_id)
       );
 
+      -- Per-user page bookmarks within a manual (private, like notes).
+      CREATE TABLE IF NOT EXISTS edu_manual_bookmarks (
+        id SERIAL PRIMARY KEY,
+        user_email TEXT NOT NULL,
+        manual_id INT REFERENCES edu_manuals(id) ON DELETE CASCADE,
+        page INT NOT NULL DEFAULT 1,
+        label TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
       -- Category catalog (shared by manuals + videos). applies_to is
       -- 'manual', 'video', or 'both' to control which dropdowns it shows in.
       CREATE TABLE IF NOT EXISTS edu_categories (
@@ -896,6 +906,44 @@ app.post('/api/saveManualNote', async (req, res) => {
      VALUES (LOWER($1), $2, $3, NOW())
      ON CONFLICT (user_email, manual_id) DO UPDATE SET notes=$3, updated_at=NOW()`,
     [user.email, req.body.manual_id, notes]
+  );
+  res.json({ ok: true });
+});
+
+// ─── Per-user manual bookmarks ──────────────────────────────────────────────
+app.post('/api/getManualBookmarks', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  const r = await pool.query(
+    `SELECT id, page, label FROM edu_manual_bookmarks
+      WHERE LOWER(user_email)=LOWER($1) AND manual_id=$2
+      ORDER BY page, id`,
+    [user.email, req.body.manual_id]
+  );
+  res.json({ ok: true, bookmarks: r.rows });
+});
+
+app.post('/api/addManualBookmark', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  const manual_id = parseInt(req.body.manual_id, 10);
+  const page = Math.max(1, parseInt(req.body.page, 10) || 1);
+  const label = String(req.body.label || '').trim().slice(0, 120);
+  if (!manual_id) return res.json({ ok: false, reason: 'manual_id required' });
+  const r = await pool.query(
+    `INSERT INTO edu_manual_bookmarks (user_email, manual_id, page, label)
+     VALUES (LOWER($1), $2, $3, $4) RETURNING id, page, label`,
+    [user.email, manual_id, page, label]
+  );
+  res.json({ ok: true, bookmark: r.rows[0] });
+});
+
+app.post('/api/deleteManualBookmark', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
+  await pool.query(
+    'DELETE FROM edu_manual_bookmarks WHERE id=$1 AND LOWER(user_email)=LOWER($2)',
+    [req.body.bookmark_id, user.email]
   );
   res.json({ ok: true });
 });

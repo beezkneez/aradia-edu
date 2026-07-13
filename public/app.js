@@ -746,10 +746,23 @@ function selectManual(id) {
       </div>
     </div>` : '';
 
+  const bookmarksBar = manual.file_type === 'pdf' ? `
+    <div class="manual-related-bar" style="flex:0 0 auto;position:relative;padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px">
+      <button class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px" onclick="toggleBookmarks()">
+        <span>&#128278; Bookmarks (<span id="bm_count">0</span>)</span>
+        <span id="bm_caret" style="transition:transform .15s">&#9662;</span>
+      </button>
+      <button class="btn-secondary" style="font-size:13px;white-space:nowrap" onclick="addManualBookmark(${manual.id})">+ Add here</button>
+      <div id="bookmarks_panel" style="display:none;position:absolute;left:12px;right:12px;top:100%;z-index:30;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.35);overflow:hidden">
+        <div id="bookmarks_list" style="max-height:48vh;overflow-y:auto"></div>
+      </div>
+    </div>` : '';
+
   viewer.innerHTML = `
     <button class="manual-back-btn" onclick="closeManual()" aria-label="Back to list">&larr;</button>
     <div class="manual-pane" style="flex-direction:column">
       ${relatedBar}
+      ${bookmarksBar}
       <div style="flex:1;min-height:0;width:100%;display:flex">${pdfPane}</div>
     </div>
     <aside class="manual-notes" id="manual_notes_panel">
@@ -768,7 +781,68 @@ function selectManual(id) {
 
   document.getElementById('page_manuals').classList.add('viewing-manual');
   loadManualNote(manual.id);
+  if (manual.file_type === 'pdf') loadManualBookmarks(manual.id);
   renderManualsList();
+}
+
+function toggleBookmarks() {
+  const panel = document.getElementById('bookmarks_panel');
+  const caret = document.getElementById('bm_caret');
+  if (!panel) return;
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  if (caret) caret.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+async function loadManualBookmarks(manual_id) {
+  const r = await api('getManualBookmarks', { manual_id });
+  const list = document.getElementById('bookmarks_list');
+  const count = document.getElementById('bm_count');
+  if (!list) return;
+  const bms = r.ok ? r.bookmarks : [];
+  if (count) count.textContent = bms.length;
+  if (!bms.length) {
+    list.innerHTML = '<div style="padding:12px 14px;color:var(--text3);font-size:13px">No bookmarks yet. Open the page you want, then tap "+ Add here".</div>';
+    return;
+  }
+  list.innerHTML = bms.map(b => `
+    <div class="related-video-item" style="display:flex;align-items:center;gap:8px;padding:8px 10px 8px 14px;border-bottom:1px solid var(--border)">
+      <button onclick="jumpToBookmark(${b.page})" style="flex:1;display:flex;align-items:center;gap:10px;text-align:left;background:none;border:none;color:var(--text);font-size:14px;cursor:pointer">
+        <span style="min-width:44px;font-size:12px;font-weight:700;color:var(--accent)">p.${b.page}</span>
+        <span>${esc(b.label || 'Bookmark')}</span>
+      </button>
+      <button onclick="deleteManualBookmark(${b.id}, ${manual_id})" aria-label="Delete bookmark"
+        style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px 8px">&times;</button>
+    </div>`).join('');
+}
+
+async function addManualBookmark(manual_id) {
+  const pageStr = prompt('Which page number are you bookmarking?');
+  if (pageStr === null) return;
+  const page = Math.max(1, parseInt(pageStr, 10) || 0);
+  if (!page) return toast('Enter a valid page number', 'error');
+  const label = (prompt('Label for this bookmark (optional):') || '').trim();
+  const r = await api('addManualBookmark', { manual_id, page, label });
+  if (r.ok) { toast('Bookmark added', 'success'); loadManualBookmarks(manual_id); }
+  else toast(r.reason || 'Failed to add bookmark', 'error');
+}
+
+async function deleteManualBookmark(bookmark_id, manual_id) {
+  const r = await api('deleteManualBookmark', { bookmark_id });
+  if (r.ok) { toast('Bookmark removed', 'success'); loadManualBookmarks(manual_id); }
+}
+
+// Jump the manual iframe to a page. Works for app-hosted PDFs via #page=N;
+// Drive-embedded PDFs ignore it, so we tell the user the page to flip to.
+function jumpToBookmark(page) {
+  const manual = STATE.manuals.find(m => m.id === STATE.selectedManual);
+  const frame = document.querySelector('#manuals_viewer .manual-frame');
+  if (!manual || !frame) return;
+  const base = manual.file_path.split('#')[0];
+  const isDrive = /drive\.google\.com/.test(base);
+  frame.src = base + '#page=' + page;
+  toggleBookmarks();
+  if (isDrive) toast(`Flip to page ${page} — Drive PDFs don't auto-jump`, 'success');
 }
 
 function closeManual() {
