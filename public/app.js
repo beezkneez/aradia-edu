@@ -2302,6 +2302,32 @@ async function deleteAdminCategory(id) {
   else toast(r.reason || 'Failed to delete', 'error');
 }
 
+async function runLinkCheck(kind) {
+  const label = kind === 'manual' ? 'manuals' : 'videos';
+  showModal(`<h3>Checking ${label}…</h3><p style="color:var(--text3);font-size:14px">Pinging every link — this can take a moment.</p>`);
+  const r = await api('admin/checkLinks', { kind });
+  if (!r.ok) return showModal(`<h3>Check failed</h3><p>${esc(r.reason || 'Error')}</p>
+    <div class="modal-actions"><button class="btn-secondary" onclick="hideModal()">Close</button></div>`);
+  const t = r.totals;
+  const problems = r.problems || [];
+  const rows = problems.length ? problems.map(p => `
+    <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:600">${esc(p.title)}</div>
+        <div style="font-size:12px;color:var(--text3)">${p.type} · ${esc(p.reason)}</div>
+      </div>
+      <span style="font-size:11px;font-weight:700;white-space:nowrap;color:${p.status === 'broken' ? 'var(--accent)' : 'var(--text3)'}">${p.status === 'broken' ? 'BROKEN' : 'UNKNOWN'}</span>
+    </div>`).join('') : '<p style="color:var(--text2);padding:8px 0">&#9989; Every link is healthy.</p>';
+  showModal(`
+    <h3>Link check — ${label}</h3>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">
+      Checked ${t.checked} · <b style="color:var(--text)">${t.ok} ok</b> · ${t.broken} broken${t.unknown ? ` · ${t.unknown} unknown` : ''}
+    </p>
+    <div style="max-height:50vh;overflow-y:auto">${rows}</div>
+    <div class="modal-actions"><button class="btn-secondary" onclick="hideModal()">Close</button></div>
+  `);
+}
+
 async function deleteAllVideos() {
   const count = (STATE.adminVideos || []).length;
   if (!count) return toast('There are no videos to delete', 'error');

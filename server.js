@@ -1755,6 +1755,99 @@ app.post('/api/admin/importDriveFolder', async (req, res) => {
   });
 });
 
+// Pull a Drive file ID out of a stored link.
+function driveFileIdFromUrl(u) {
+  const s = String(u || '');
+  let m = s.match(/\/file\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  m = s.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  return null;
+}
+
+// Check one item's link. Returns { status: 'ok'|'broken'|'unknown', reason }.
+async function checkOneLink(filePath, apiKey) {
+  const fp = String(filePath || '');
+  if (!fp) return { status: 'broken', reason: 'No file link' };
+  // Locally-hosted upload
+  if (fp.startsWith('/uploads') || fp.startsWith('/')) {
+    const abs = path.join(__dirname, 'public', fp);
+    return fs.existsSync(abs)
+      ? { status: 'ok', reason: '' }
+      : { status: 'broken', reason: 'File missing on server' };
+  }
+  if (/drive\.google\.com/.test(fp)) {
+    const id = driveFileIdFromUrl(fp);
+    if (!id) return { status: 'broken', reason: 'Unrecognized Drive link' };
+    if (!apiKey) return { status: 'unknown', reason: 'No GOOGLE_API_KEY set' };
+    try {
+      const params = new URLSearchParams({ fields: 'id,trashed', key: apiKey, supportsAllDrives: 'true' });
+      const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?${params.toString()}`);
+      if (resp.status === 404) return { status: 'broken', reason: 'Not found or not shared publicly' };
+      if (resp.status === 403) return { status: 'broken', reason: 'Access denied — check sharing' };
+      if (!resp.ok) return { status: 'unknown', reason: `Drive returned ${resp.status}` };
+      const data = await resp.json();
+      if (data.trashed) return { status: 'broken', reason: 'File is in the trash' };
+      return { status: 'ok', reason: '' };
+    } catch (e) {
+      return { status: 'unknown', reason: e.message };
+    }
+  }
+  // Other external URL — a lightweight reachability check.
+  try {
+    const resp = await fetch(fp, { method: 'GET' });
+    return resp.ok ? { status: 'ok', reason: '' } : { status: 'broken', reason: `Returned ${resp.status}` };
+  } catch (e) {
+    return { status: 'broken', reason: 'Unreachable' };
+  }
+}
+
+// Run an async mapper over items with a small concurrency cap.
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      out[idx] = await fn(items[idx], idx);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+// Admin: check the health of every manual/video link and report the broken ones.
+app.post('/api/admin/checkLinks', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const kind = ['manual', 'video', 'both'].includes(req.body.kind) ? req.body.kind : 'both';
+  const apiKey = process.env.GOOGLE_API_KEY;
+  const items = [];
+  if (kind === 'manual' || kind === 'both') {
+    const r = await pool.query('SELECT id, title, file_path FROM edu_manuals');
+    for (const m of r.rows) items.push({ type: 'manual', id: m.id, title: m.title, file_path: m.file_path });
+  }
+  if (kind === 'video' || kind === 'both') {
+    const r = await pool.query('SELECT id, title, file_path FROM edu_videos');
+    for (const v of r.rows) items.push({ type: 'video', id: v.id, title: v.title, file_path: v.file_path });
+  }
+  const results = await mapLimit(items, 8, async (it) => {
+    const h = await checkOneLink(it.file_path, apiKey);
+    return { ...it, ...h };
+  });
+  const problems = results.filter(r => r.status !== 'ok');
+  res.json({
+    ok: true,
+    totals: {
+      checked: results.length,
+      ok: results.filter(r => r.status === 'ok').length,
+      broken: results.filter(r => r.status === 'broken').length,
+      unknown: results.filter(r => r.status === 'unknown').length,
+    },
+    problems,
+  });
+});
+
 // ─── Catch-all: serve SPA ───────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

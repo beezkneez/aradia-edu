@@ -182,8 +182,9 @@
 
         <!-- Manuals Panel -->
         <div id="admin_manuals" class="admin-panel">
-          <div class="admin-section-header">
+          <div class="admin-section-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <h3>Manuals Library</h3>
+            <button class="btn-secondary" style="white-space:nowrap" onclick="runLinkCheck('manual')">&#128279; Check links</button>
           </div>
           <div class="upload-zone" id="manual_upload_zone">
             <div class="upload-icon">&#128228;</div>
@@ -204,11 +205,14 @@
 
         <!-- Videos Panel -->
         <div id="admin_videos" class="admin-panel">
-          <div class="admin-section-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div class="admin-section-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <h3>Videos Library</h3>
-            <button class="btn-danger" style="white-space:nowrap" onclick="deleteAllVideos()">
-              &#128465; Delete all videos
-            </button>
+            <div style="display:flex;gap:8px">
+              <button class="btn-secondary" style="white-space:nowrap" onclick="runLinkCheck('video')">&#128279; Check links</button>
+              <button class="btn-danger" style="white-space:nowrap" onclick="deleteAllVideos()">
+                &#128465; Delete all videos
+              </button>
+            </div>
           </div>
           <button class="btn-secondary" style="width:100%" onclick="addDriveVideoModal()">
             &#128279; Add from Google Drive link
