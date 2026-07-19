@@ -7,3 +7,7 @@ public/uploads/_tmp/
 !public/uploads/manuals/.gitkeep
 !public/uploads/modules/.gitkeep
 !public/uploads/backgrounds/.gitkeep
+migrations/_tmp/
+manuals/
+migrations/drive-to-bunny-map.json
+pdf from drive/

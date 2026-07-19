@@ -1676,8 +1676,14 @@ async function uploadManual(input) {
   const file = input.files[0];
   const ext = file.name.split('.').pop().toLowerCase();
 
-  const r = await apiUpload('manuals', file);
-  if (!r.ok) return toast('Upload failed', 'error');
+  // Upload straight to Bunny Storage (durable CDN) instead of local disk.
+  toast('Uploading…', 'info');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('email', STATE.email);
+  fd.append('pin', STATE.pin);
+  const r = await (await fetch('/api/admin/uploadManualBunny', { method: 'POST', body: fd })).json();
+  if (!r.ok) return toast(r.reason || 'Upload failed', 'error');
 
   const defaultTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
 

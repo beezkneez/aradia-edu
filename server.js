@@ -77,6 +77,36 @@ const bunnyUpload = multer({
   limits: { fileSize: 500 * 1024 * 1024 } // 500MB — comfortably above the ~30MB norm
 });
 
+// ─── Bunny Storage (file hosting for manual PDFs) ───────────────────────────
+// Manual PDFs upload to a Bunny Storage Zone and are served via its pull zone;
+// edu_manuals.file_path holds the public CDN URL. Replaces the old local-disk
+// uploads, which were ephemeral on Railway. Old Drive/local manuals still work.
+const BST_ZONE = (process.env.BUNNY_STORAGE_ZONE || '').trim();
+const BST_PW = (process.env.BUNNY_STORAGE_PASSWORD || '').trim();
+const BST_HOST = (process.env.BUNNY_STORAGE_HOSTNAME || '').trim();          // pull-zone hostname, e.g. aradia-edu-files.b-cdn.net
+const BST_API = (process.env.BUNNY_STORAGE_API_HOST || 'storage.bunnycdn.com').trim(); // region endpoint (Frankfurt = default)
+const bunnyStorageConfigured = () => Boolean(BST_ZONE && BST_PW && BST_HOST);
+async function bunnyStoragePut(remotePath, buf) {
+  const r = await fetch(`https://${BST_API}/${BST_ZONE}/${remotePath}`, {
+    method: 'PUT', headers: { AccessKey: BST_PW, 'Content-Type': 'application/octet-stream' }, body: buf
+  });
+  if (!r.ok) throw new Error('storage PUT ' + r.status);
+  return `https://${BST_HOST}/${remotePath}`;
+}
+// If a file_path is a URL under our pull zone, return its storage path, else null.
+function bunnyStoragePathFromUrl(fp) {
+  if (!BST_HOST) return null;
+  const pref = `https://${BST_HOST}/`;
+  return String(fp || '').startsWith(pref) ? String(fp).slice(pref.length) : null;
+}
+async function maybeDeleteFromBunnyStorage(fp) {
+  const rp = bunnyStoragePathFromUrl(fp);
+  if (!rp || !bunnyStorageConfigured()) return;
+  try {
+    await fetch(`https://${BST_API}/${BST_ZONE}/${rp}`, { method: 'DELETE', headers: { AccessKey: BST_PW } });
+  } catch (e) { console.error('Bunny storage delete failed:', e.message); }
+}
+
 // ─── Auth helper (shared with aradia-time DB) ───────────────────────────────
 async function getAuthorizedUser(email, pin) {
   try {
@@ -905,6 +935,28 @@ app.post('/api/admin/upload/:type', upload.single('file'), async (req, res) => {
   }
 });
 
+// ─── Admin: upload a manual (PDF/doc) to Bunny Storage ──────────────────────
+// Receives the file to a temp path, PUTs it to the Bunny Storage Zone, returns
+// the public pull-zone URL. Falls back with a clear error if not configured.
+app.post('/api/admin/uploadManualBunny', bunnyUpload.single('file'), async (req, res) => {
+  const tmpPath = req.file && req.file.path;
+  try {
+    const user = await getAuthorizedUser(req.body.email, req.body.pin);
+    if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+    if (!bunnyStorageConfigured()) return res.json({ ok: false, reason: 'File hosting is not configured — set BUNNY_STORAGE_ZONE / _PASSWORD / _HOSTNAME.' });
+    if (!req.file) return res.json({ ok: false, reason: 'No file uploaded' });
+    const ext = (path.extname(req.file.originalname) || '.pdf').toLowerCase();
+    const remotePath = `manuals/${uuidv4()}${ext}`;
+    const url = await bunnyStoragePut(remotePath, fs.readFileSync(tmpPath));
+    res.json({ ok: true, filePath: url, originalName: req.file.originalname });
+  } catch (e) {
+    console.error('uploadManualBunny error:', e);
+    res.json({ ok: false, reason: 'Upload failed: ' + (e.message || 'unknown error') });
+  } finally {
+    if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (_) {} }
+  }
+});
+
 // ─── Admin: Get PDF page count ──────────────────────────────────────────────
 app.post('/api/admin/getPdfPageCount', async (req, res) => {
   try {
@@ -1513,10 +1565,13 @@ app.post('/api/admin/deleteManual', async (req, res) => {
   const manual = await pool.query('SELECT file_path FROM edu_manuals WHERE id=$1', [req.body.manual_id]);
   if (manual.rows.length > 0) {
     const fp = manual.rows[0].file_path || '';
-    // Only delete local files; skip remote URLs (e.g. Google Drive embeds).
     if (!/^https?:\/\//i.test(fp)) {
+      // Legacy local file.
       const fullPath = path.join(__dirname, 'public', fp);
       if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    } else {
+      // Bunny-hosted PDF (no-op for Google Drive / other URLs).
+      await maybeDeleteFromBunnyStorage(fp);
     }
   }
   await pool.query('DELETE FROM edu_manuals WHERE id=$1', [req.body.manual_id]);
