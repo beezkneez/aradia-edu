@@ -2022,6 +2022,105 @@ async function loadAdminVideos() {
     </div>`).join('');
 }
 
+// Upload a video file straight to Bunny Stream (primary path). Shows an upload
+// progress bar; on success it creates the edu_videos row via createVideo with
+// the Bunny embed URL as file_path, so every iframe player just works.
+function uploadBunnyVideoModal() {
+  showModal(`
+    <h3>Upload a Video</h3>
+    <div class="form-group">
+      <label class="form-label">Video file</label>
+      <input class="form-input" type="file" id="bv_file" accept="video/*">
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        MP4, MOV or WebM. Uploads to your Bunny video library and encodes automatically.
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="bv_title" placeholder="e.g. Aerial Hoop Beat Drop">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <select class="form-input" id="bv_category" onchange="handleCategoryChange(this, 'video')">
+        <option>Loading categories…</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea class="form-input" id="bv_description" placeholder="Brief description..."></textarea>
+    </div>
+    <div id="bv_progress" style="display:none;margin-bottom:12px">
+      <div style="height:8px;background:var(--accent-bg2,#333);border-radius:4px;overflow:hidden">
+        <div id="bv_bar" style="height:100%;width:0;background:var(--accent,#e8465a);transition:width .2s"></div>
+      </div>
+      <div id="bv_pct" style="font-size:12px;color:var(--text3);margin-top:6px">Uploading… 0%</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" id="bv_save" onclick="saveBunnyVideo()">Upload</button>
+    </div>
+  `);
+  populateCategorySelect('bv_category', 'video');
+}
+
+function saveBunnyVideo() {
+  const fileEl = document.getElementById('bv_file');
+  const file = fileEl && fileEl.files[0];
+  const title = document.getElementById('bv_title').value.trim();
+  const catSel = document.getElementById('bv_category').value;
+  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : 'General';
+  const description = document.getElementById('bv_description').value.trim();
+
+  if (!file) return toast('Please choose a video file', 'error');
+  if (!title) return toast('Please enter a title', 'error');
+
+  const saveBtn = document.getElementById('bv_save');
+  const prog = document.getElementById('bv_progress');
+  const bar = document.getElementById('bv_bar');
+  const pct = document.getElementById('bv_pct');
+  saveBtn.disabled = true; saveBtn.textContent = 'Uploading…';
+  prog.style.display = 'block';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('email', STATE.email);
+  fd.append('pin', STATE.pin);
+  fd.append('title', title);
+
+  // XHR (not fetch) so we can show real upload progress for large files.
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/admin/uploadVideoBunny');
+  xhr.upload.onprogress = (e) => {
+    if (!e.lengthComputable) return;
+    const p = Math.round((e.loaded / e.total) * 100);
+    bar.style.width = p + '%';
+    pct.textContent = p >= 100 ? 'Processing on Bunny…' : `Uploading… ${p}%`;
+  };
+  xhr.onload = async () => {
+    let resp; try { resp = JSON.parse(xhr.responseText); } catch (_) { resp = null; }
+    if (!resp || !resp.ok) {
+      saveBtn.disabled = false; saveBtn.textContent = 'Upload';
+      prog.style.display = 'none';
+      return toast((resp && resp.reason) || 'Upload failed', 'error');
+    }
+    const r = await api('admin/createVideo', {
+      title, description, category,
+      file_path: resp.file_path, file_type: resp.file_type || 'bunny_video'
+    });
+    if (r.ok) { hideModal(); toast('Video uploaded', 'success'); loadAdminVideos(); }
+    else {
+      saveBtn.disabled = false; saveBtn.textContent = 'Upload';
+      toast(r.reason || 'Failed to save video', 'error');
+    }
+  };
+  xhr.onerror = () => {
+    saveBtn.disabled = false; saveBtn.textContent = 'Upload';
+    prog.style.display = 'none';
+    toast('Network error during upload', 'error');
+  };
+  xhr.send(fd);
+}
+
 function addDriveVideoModal() {
   showModal(`
     <h3>Add Video from Google Drive</h3>

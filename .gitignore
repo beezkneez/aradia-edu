@@ -3,6 +3,7 @@ node_modules/
 public/uploads/manuals/*
 public/uploads/modules/*
 public/uploads/backgrounds/*
+public/uploads/_tmp/
 !public/uploads/manuals/.gitkeep
 !public/uploads/modules/.gitkeep
 !public/uploads/backgrounds/.gitkeep

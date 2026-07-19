@@ -36,6 +36,47 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB
 
+// ─── Bunny Stream (video hosting) ───────────────────────────────────────────
+// New edu videos are uploaded to a Bunny Stream library and stored as a Bunny
+// iframe-embed URL in edu_videos.file_path (file_type='bunny_video'). Because
+// every player (edu app + the aradia-time mirror) just iframes file_path, the
+// Bunny player works everywhere with no player-code changes. Old Drive videos
+// keep their drive.google.com/preview file_path and keep working.
+const BUNNY_LIB = (process.env.BUNNY_STREAM_LIBRARY_ID || '').trim();
+const BUNNY_KEY = (process.env.BUNNY_STREAM_API_KEY || '').trim();
+const bunnyConfigured = () => Boolean(BUNNY_LIB && BUNNY_KEY);
+const bunnyEmbedUrl = (guid) => `https://iframe.mediadelivery.net/embed/${BUNNY_LIB}/${guid}`;
+function bunnyGuidFromPath(fp) {
+  const m = String(fp || '').match(/iframe\.mediadelivery\.net\/(?:embed|play)\/\d+\/([a-f0-9-]{36})/i);
+  return m ? m[1] : null;
+}
+// Best-effort: remove a Bunny-hosted video when its edu_videos row is deleted,
+// so we don't pay to store orphans. Never throws — cleanup is non-critical.
+async function maybeDeleteFromBunny(row) {
+  if (!row || row.file_type !== 'bunny_video' || !bunnyConfigured()) return;
+  const guid = bunnyGuidFromPath(row.file_path);
+  if (!guid) return;
+  try {
+    await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIB}/videos/${guid}`, {
+      method: 'DELETE', headers: { AccessKey: BUNNY_KEY }
+    });
+  } catch (e) { console.error('Bunny delete failed:', e.message); }
+}
+
+// Temp landing spot for a video before it's streamed up to Bunny, then removed.
+// (This server's disk is ephemeral — nothing video-sized is meant to live here.)
+const bunnyTmpDir = path.join(__dirname, 'public', 'uploads', '_tmp');
+const bunnyUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      if (!fs.existsSync(bunnyTmpDir)) fs.mkdirSync(bunnyTmpDir, { recursive: true });
+      cb(null, bunnyTmpDir);
+    },
+    filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`)
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 } // 500MB — comfortably above the ~30MB norm
+});
+
 // ─── Auth helper (shared with aradia-time DB) ───────────────────────────────
 async function getAuthorizedUser(email, pin) {
   try {
@@ -1135,6 +1176,59 @@ app.post('/api/admin/createVideo', async (req, res) => {
   res.json({ ok: true, video: r.rows[0] });
 });
 
+// ─── Admin: upload a video file straight to Bunny Stream ────────────────────
+// Receives the file to a temp path, (1) creates the video object in the Bunny
+// library, (2) uploads the bytes, then removes the temp file. Returns the
+// embed URL + file_type so the client can save an edu_videos row via
+// /api/admin/createVideo. The API key never leaves the server.
+app.post('/api/admin/uploadVideoBunny', bunnyUpload.single('file'), async (req, res) => {
+  const tmpPath = req.file && req.file.path;
+  try {
+    const user = await getAuthorizedUser(req.body.email, req.body.pin);
+    if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+    if (!bunnyConfigured()) return res.json({ ok: false, reason: 'Video hosting is not configured — set BUNNY_STREAM_LIBRARY_ID and BUNNY_STREAM_API_KEY.' });
+    if (!req.file) return res.json({ ok: false, reason: 'No file uploaded' });
+
+    const title = String(req.body.title || req.file.originalname || 'Untitled').slice(0, 200);
+
+    // 1) Create the video object.
+    const createResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIB}/videos`, {
+      method: 'POST',
+      headers: { AccessKey: BUNNY_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ title })
+    });
+    if (!createResp.ok) {
+      const t = await createResp.text().catch(() => '');
+      console.error('Bunny create failed:', createResp.status, t);
+      return res.json({ ok: false, reason: `Bunny rejected the create (${createResp.status}). Check the Library ID and API key.` });
+    }
+    const guid = (await createResp.json()).guid;
+    if (!guid) return res.json({ ok: false, reason: 'Bunny did not return a video id' });
+
+    // 2) Upload the bytes.
+    const bytes = fs.readFileSync(tmpPath);
+    const putResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIB}/videos/${guid}`, {
+      method: 'PUT',
+      headers: { AccessKey: BUNNY_KEY, 'Content-Type': 'application/octet-stream' },
+      body: bytes
+    });
+    if (!putResp.ok) {
+      const t = await putResp.text().catch(() => '');
+      console.error('Bunny upload failed:', putResp.status, t);
+      // Roll back the empty video object we just created.
+      await maybeDeleteFromBunny({ file_type: 'bunny_video', file_path: bunnyEmbedUrl(guid) });
+      return res.json({ ok: false, reason: `Bunny upload failed (${putResp.status})` });
+    }
+
+    res.json({ ok: true, guid, file_path: bunnyEmbedUrl(guid), file_type: 'bunny_video' });
+  } catch (e) {
+    console.error('uploadVideoBunny error:', e);
+    res.json({ ok: false, reason: 'Upload failed: ' + (e.message || 'unknown error') });
+  } finally {
+    if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (_) {} }
+  }
+});
+
 app.post('/api/admin/updateVideo', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
@@ -1149,7 +1243,10 @@ app.post('/api/admin/updateVideo', async (req, res) => {
 app.post('/api/admin/deleteVideo', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  // Look up the source before deleting so we can also remove Bunny-hosted files.
+  const row = await pool.query('SELECT file_path, file_type FROM edu_videos WHERE id=$1', [req.body.video_id]);
   await pool.query('DELETE FROM edu_videos WHERE id=$1', [req.body.video_id]);
+  if (row.rows[0]) await maybeDeleteFromBunny(row.rows[0]);
   res.json({ ok: true });
 });
 
