@@ -15,7 +15,6 @@ const STATE = {
   selectedManual: null,
   videos: [],
   videosFilter: 'all',
-  videosView: localStorage.getItem('edu_videos_view') || 'grid',
   selectedVideo: null,
   favorites: [],
   favoritesFilter: 'all',
@@ -1099,37 +1098,12 @@ function renderVideosList() {
 
   filtered = sortItems(filtered, STATE.videosSort);
   const vsort = document.getElementById('videos_sort'); if (vsort) vsort.value = STATE.videosSort;
-  syncVideosViewToggle();
-
   const el = document.getElementById('videos_list');
   if (filtered.length === 0) {
-    el.className = 'manuals-list';
     el.innerHTML = '<div class="empty-state"><p>No videos found</p></div>';
     return;
   }
 
-  if (STATE.videosView === 'grid') {
-    el.className = 'manuals-list media-grid';
-    el.innerHTML = filtered.map(v => {
-      const cat = catNames(v).join(' · ') || '';
-      return `
-        <div class="fav-tile ${STATE.selectedVideo === v.id ? 'active' : ''}" onclick="selectVideo(${v.id})">
-          <div class="fav-tile-cover">
-            ${v.thumbnail_url ? `<img class="ft-thumb" src="${esc(v.thumbnail_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
-            <span class="ft-icon">&#127909;</span>
-            <button class="fav-tile-star ${v.is_favorite ? 'favorited' : ''}" title="Favourite"
-              onclick="event.stopPropagation();toggleVideoFav(${v.id})">&#9733;</button>
-          </div>
-          <div class="fav-tile-body">
-            <div class="fav-tile-title">${esc(v.title)}</div>
-            <div class="fav-tile-cat">${esc(cat)}</div>
-          </div>
-        </div>`;
-    }).join('');
-    return;
-  }
-
-  el.className = 'manuals-list';
   el.innerHTML = filtered.map(v => `
     <div class="manual-item ${STATE.selectedVideo === v.id ? 'active' : ''}" onclick="selectVideo(${v.id})">
       <div class="manual-icon">&#127909;</div>
@@ -1141,17 +1115,6 @@ function renderVideosList() {
         &#9733;
       </button>
     </div>`).join('');
-}
-
-function setVideosView(view) {
-  STATE.videosView = view === 'list' ? 'list' : 'grid';
-  localStorage.setItem('edu_videos_view', STATE.videosView);
-  syncVideosViewToggle();
-  renderVideosList();
-}
-function syncVideosViewToggle() {
-  document.querySelectorAll('#videos_view_toggle .view-toggle-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.view === STATE.videosView));
 }
 
 function selectVideo(id) {
