@@ -44,11 +44,39 @@ const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 
 // keep their drive.google.com/preview file_path and keep working.
 const BUNNY_LIB = (process.env.BUNNY_STREAM_LIBRARY_ID || '').trim();
 const BUNNY_KEY = (process.env.BUNNY_STREAM_API_KEY || '').trim();
+// Pull-zone CDN host (e.g. vz-xxxx.b-cdn.net) — used to build poster/thumbnail URLs.
+const BUNNY_CDN = (process.env.BUNNY_STREAM_CDN_HOSTNAME || '').trim()
+  .replace(/^https?:\/\//, '').replace(/\/+$/, '');
 const bunnyConfigured = () => Boolean(BUNNY_LIB && BUNNY_KEY);
 const bunnyEmbedUrl = (guid) => `https://iframe.mediadelivery.net/embed/${BUNNY_LIB}/${guid}`;
 function bunnyGuidFromPath(fp) {
   const m = String(fp || '').match(/iframe\.mediadelivery\.net\/(?:embed|play)\/\d+\/([a-f0-9-]{36})/i);
   return m ? m[1] : null;
+}
+// Extract a Google Drive file id from a /file/d/<id>/... or ?id=<id> URL.
+function driveIdFromPath(fp) {
+  const s = String(fp || '');
+  const m = s.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+// Best-effort poster image for a video row, derived from its source:
+//   • bunny_video → Bunny Stream's auto-generated thumbnail on the pull zone
+//   • drive_video → Google Drive's public thumbnail endpoint
+// Returns '' when no thumbnail can be built (client falls back to an icon).
+function videoThumbnailUrl(row) {
+  if (!row) return '';
+  if (row.file_type === 'bunny_video' && BUNNY_CDN) {
+    // The Bunny pull zone uses referrer hotlink protection, so a browser <img>
+    // from our origin is blocked. Point at our same-origin proxy instead, which
+    // fetches server-side with an allowed Referer (see /api/videoThumb/:guid).
+    const guid = bunnyGuidFromPath(row.file_path);
+    if (guid) return `/api/videoThumb/${guid}`;
+  }
+  if (row.file_type === 'drive_video') {
+    const id = driveIdFromPath(row.file_path);
+    if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w800`;
+  }
+  return '';
 }
 // Best-effort: remove a Bunny-hosted video when its edu_videos row is deleted,
 // so we don't pay to store orphans. Never throws — cleanup is non-critical.
@@ -504,6 +532,27 @@ if (_brandTimer.unref) _brandTimer.unref();
 
 app.get('/api/brand', (req, res) => {
   res.json({ ok: true, logoUrl: _brandLogoUrl || '' });
+});
+
+// ─── Video thumbnail proxy (Bunny Stream) ────────────────────────────────────
+// Bunny's pull zone blocks direct file access from non-allowed referrers, so a
+// browser <img> pointing straight at the CDN thumbnail gets a 403. We fetch it
+// server-side with an allowed Referer and stream it back from our own origin.
+// The guid is validated to a strict UUID shape so this can only ever reach a
+// thumbnail on our configured Stream CDN — not an arbitrary URL.
+app.get('/api/videoThumb/:guid', async (req, res) => {
+  const guid = String(req.params.guid || '');
+  if (!BUNNY_CDN || !/^[a-f0-9-]{36}$/i.test(guid)) return res.status(404).end();
+  try {
+    const upstream = await fetch(`https://${BUNNY_CDN}/${guid}/thumbnail.jpg`, {
+      headers: { Referer: 'https://iframe.mediadelivery.net/' }
+    });
+    if (!upstream.ok) return res.status(404).end();
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    res.set('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');  // 1 day — posters rarely change
+    res.end(buf);
+  } catch (e) { res.status(404).end(); }
 });
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -980,6 +1029,25 @@ app.post('/api/admin/uploadManualBunny', bunnyUpload.single('file'), async (req,
   }
 });
 
+// ─── Stream a manual's file same-origin (for the in-app pdf.js viewer) ──────
+// Mobile browsers won't render a raw cross-origin PDF inside an iframe, so the
+// viewer uses pdf.js — which needs the bytes same-origin. This proxies the
+// manual's file_path (Bunny/Drive/etc.) through our own origin. Auth via query
+// params so it can be used as a plain <...>getDocument(url) source.
+app.get('/api/manualFile', async (req, res) => {
+  try {
+    const user = await getAuthorizedUser(req.query.email, req.query.pin);
+    if (!user) return res.status(403).send('Unauthorized');
+    const r = await pool.query('SELECT file_path FROM edu_manuals WHERE id=$1', [req.query.id]);
+    if (!r.rows.length) return res.status(404).send('Not found');
+    const up = await fetch(r.rows[0].file_path);
+    if (!up.ok) return res.status(502).send('Upstream ' + up.status);
+    res.setHeader('Content-Type', up.headers.get('content-type') || 'application/pdf');
+    res.setHeader('Cache-Control', 'private, max-age=600');
+    res.send(Buffer.from(await up.arrayBuffer()));
+  } catch (e) { console.error('manualFile error:', e); res.status(500).send('error'); }
+});
+
 // ─── Admin: Get PDF page count ──────────────────────────────────────────────
 app.post('/api/admin/getPdfPageCount', async (req, res) => {
   try {
@@ -1166,7 +1234,10 @@ app.post('/api/getVideos', async (req, res) => {
     [user.email]
   );
   const favSet = new Set(favorites.rows.map(f => f.video_id));
-  for (const v of videos) v.is_favorite = favSet.has(v.id);
+  for (const v of videos) {
+    v.is_favorite = favSet.has(v.id);
+    v.thumbnail_url = videoThumbnailUrl(v);
+  }
 
   // Attach the manuals each video is linked to (for the "Appears in" section in
   // the video viewer, and to pre-check the picker in the video editor).

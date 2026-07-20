@@ -145,19 +145,36 @@
       </div>
     </div>
 
-    <!-- ═══ FAVORITES ══════════════════════════════════════════════════ -->
+    <!-- ═══ FAVORITES (landing page) ═══════════════════════════════════ -->
     <div id="page_favorites" class="page">
-      <aside class="manuals-sidebar" style="width:100%;border-right:none">
-        <div class="manuals-sidebar-header">
-          <h3>Favorites</h3>
-          <div class="search-wrap">
-            <span class="search-icon">&#128269;</span>
-            <input class="manuals-search" id="favorites_search" placeholder="Search favorites..." oninput="renderFavoritesList()">
+      <div class="fav-page">
+        <div class="fav-header">
+          <div class="fav-header-row">
+            <div>
+              <h2>Favourites</h2>
+              <p class="fav-sub">Your saved manuals and videos, all in one place.</p>
+            </div>
+            <div class="view-toggle" id="favorites_view_toggle">
+              <button class="view-toggle-btn" data-view="grid" onclick="setFavoritesView('grid')" title="Tile view">
+                <span class="vt-ico">&#9638;</span> Tiles
+              </button>
+              <button class="view-toggle-btn" data-view="list" onclick="setFavoritesView('list')" title="List view">
+                <span class="vt-ico">&#9776;</span> List
+              </button>
+            </div>
           </div>
-          <div class="manuals-filter" id="favorites_filter"></div>
+          <div class="fav-controls">
+            <div class="search-wrap fav-search">
+              <span class="search-icon">&#128269;</span>
+              <input class="manuals-search" id="favorites_search" placeholder="Search favourites..." oninput="renderFavoritesList()">
+            </div>
+            <div class="manuals-filter" id="favorites_filter"></div>
+          </div>
         </div>
-        <div class="manuals-list" id="favorites_list"></div>
-      </aside>
+        <div class="fav-scroll">
+          <div id="favorites_list"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ ADMIN ══════════════════════════════════════════════════════ -->

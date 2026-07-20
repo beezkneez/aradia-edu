@@ -18,6 +18,7 @@ const STATE = {
   selectedVideo: null,
   favorites: [],
   favoritesFilter: 'all',
+  favoritesView: localStorage.getItem('edu_fav_view') || 'grid',
   adminModules: [],
   adminManuals: [],
   adminVideos: [],
@@ -212,7 +213,7 @@ function enterApp() {
     history.replaceState(null, '', location.pathname);
     go('manuals', manualId);
   } else {
-    go('manuals');
+    go('favorites');
   }
 }
 
@@ -745,7 +746,7 @@ function selectManual(id) {
 
   const viewer = document.getElementById('manuals_viewer');
   const pdfPane = manual.file_type === 'pdf'
-    ? `<iframe class="manual-frame" src="${manual.file_path}"></iframe>`
+    ? `<div class="manual-frame" id="manual_pdf_scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px;background:var(--bg2)"></div>`
     : `<div style="padding:40px;text-align:center;color:var(--text2)">
          <div style="font-size:48px;margin-bottom:16px">&#128196;</div>
          <p>${esc(manual.title)}</p>
@@ -810,7 +811,7 @@ function selectManual(id) {
 
   document.getElementById('page_manuals').classList.add('viewing-manual');
   loadManualNote(manual.id);
-  if (manual.file_type === 'pdf') loadManualBookmarks(manual.id);
+  if (manual.file_type === 'pdf') { loadManualBookmarks(manual.id); renderManualPdf(manual.id); }
   renderManualsList();
 }
 
@@ -861,17 +862,64 @@ async function deleteManualBookmark(bookmark_id, manual_id) {
   if (r.ok) { toast('Bookmark removed', 'success'); loadManualBookmarks(manual_id); }
 }
 
-// Jump the manual iframe to a page. Works for app-hosted PDFs via #page=N;
-// Drive-embedded PDFs ignore it, so we tell the user the page to flip to.
+// Render a manual's PDF inline with pdf.js — works on mobile, unlike an iframe
+// of a raw PDF (phones hand those off to an external viewer). Pages render
+// lazily as they scroll into view, so large PDFs stay light on memory.
+async function renderManualPdf(id) {
+  const c = document.getElementById('manual_pdf_scroll');
+  if (!c) return;
+  const src = '/api/manualFile?id=' + id
+    + '&email=' + encodeURIComponent(STATE.email) + '&pin=' + encodeURIComponent(STATE.pin);
+  if (typeof pdfjsLib === 'undefined') {
+    c.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Viewer unavailable. <a href="' + src + '" target="_blank" style="color:var(--accent)">Open in a new tab</a></div>';
+    return;
+  }
+  c.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Loading…</div>';
+  let pdf;
+  try { pdf = await pdfjsLib.getDocument(src).promise; }
+  catch (e) {
+    c.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Couldn\'t display this file. <a href="' + src + '" target="_blank" style="color:var(--accent)">Open in a new tab</a></div>';
+    return;
+  }
+  c.innerHTML = '';
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.min(c.clientWidth || 800, 900);
+  const first = (await pdf.getPage(1)).getViewport({ scale: 1 });
+  const ratio = first.height / first.width;
+  const rendered = new Set();
+  const holders = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const h = document.createElement('div');
+    h.dataset.page = n;
+    h.style.cssText = 'margin:0 auto 8px;width:100%;max-width:900px;min-height:' + Math.round(width * ratio) + 'px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)';
+    c.appendChild(h); holders.push(h);
+  }
+  async function renderPage(n) {
+    if (rendered.has(n)) return; rendered.add(n);
+    const page = await pdf.getPage(n);
+    const vw = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: (width / vw.width) * dpr });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    canvas.style.cssText = 'display:block;width:100%;height:auto';
+    holders[n - 1].style.minHeight = '';
+    holders[n - 1].appendChild(canvas);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  }
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach(e => { if (e.isIntersecting) renderPage(+e.target.dataset.page); });
+  }, { root: c, rootMargin: '600px 0px' });
+  holders.forEach(h => io.observe(h));
+}
+
+// Jump the inline PDF to a page by scrolling to its canvas.
 function jumpToBookmark(page) {
-  const manual = STATE.manuals.find(m => m.id === STATE.selectedManual);
-  const frame = document.querySelector('#manuals_viewer .manual-frame');
-  if (!manual || !frame) return;
-  const base = manual.file_path.split('#')[0];
-  const isDrive = /drive\.google\.com/.test(base);
-  frame.src = base + '#page=' + page;
+  const c = document.getElementById('manual_pdf_scroll');
   toggleBookmarks();
-  if (isDrive) toast(`Flip to page ${page} — Drive PDFs don't auto-jump`, 'success');
+  if (!c) return;
+  const holder = c.querySelector('[data-page="' + page + '"]');
+  if (holder) holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  else toast('Page ' + page + ' not found', 'error');
 }
 
 function closeManual() {
@@ -1146,7 +1194,21 @@ async function loadFavorites() {
   const v = (vr.ok ? vr.videos : []).filter(x => x.is_favorite).map(x => ({...x, _type: 'video'}));
   STATE.favorites = [...m, ...v];
   renderFavoritesFilters();
+  syncFavoritesViewToggle();
   renderFavoritesList();
+}
+
+function setFavoritesView(view) {
+  STATE.favoritesView = view === 'list' ? 'list' : 'grid';
+  localStorage.setItem('edu_fav_view', STATE.favoritesView);
+  syncFavoritesViewToggle();
+  renderFavoritesList();
+}
+
+function syncFavoritesViewToggle() {
+  document.querySelectorAll('#favorites_view_toggle .view-toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === STATE.favoritesView)
+  );
 }
 
 function renderFavoritesFilters() {
@@ -1176,23 +1238,64 @@ function renderFavoritesList() {
 
   const el = document.getElementById('favorites_list');
   if (filtered.length === 0) {
-    el.innerHTML = `<div class="empty-state"><p>No favorites yet — tap the &#9733; on any manual or video to add one.</p></div>`;
+    const hasAny = STATE.favorites.length > 0;
+    const msg = hasAny
+      ? 'Nothing matches your search.'
+      : 'No favourites yet — tap the &#9733; on any manual or video to save it here.';
+    el.className = '';
+    el.innerHTML = `<div class="fav-empty">
+      <div class="empty-icon">&#11088;</div>
+      <p>${msg}</p>
+      ${hasAny ? '' : `<div class="fav-empty-links">
+        <button class="btn-secondary" onclick="go('manuals')">Browse Manuals</button>
+        <button class="btn-secondary" onclick="go('videos')">Browse Videos</button>
+      </div>`}
+    </div>`;
     return;
   }
 
+  if (STATE.favoritesView === 'list') {
+    el.className = 'fav-list';
+    el.innerHTML = filtered.map(f => {
+      const icon = f._type === 'manual' ? '&#128196;' : '&#127909;';
+      const typeLabel = f._type === 'manual' ? 'Manual' : 'Video';
+      const cat = catNames(f).join(' · ') || f.category || '';
+      return `
+        <div class="fav-row" onclick="openFavorite('${f._type}', ${f.id})">
+          <div class="fav-row-media">
+            ${f.thumbnail_url ? `<img src="${esc(f.thumbnail_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+            <span class="fav-row-icon">${icon}</span>
+          </div>
+          <div class="fav-row-info">
+            <div class="fav-row-title">${esc(f.title)}</div>
+            <div class="fav-row-cat">${typeLabel}${cat ? ' &middot; ' + esc(cat) : ''}</div>
+          </div>
+          <button class="fav-row-star" title="Remove from favourites"
+            onclick="event.stopPropagation();unfavoriteFromList('${f._type}', ${f.id})">&#9733;</button>
+        </div>`;
+    }).join('');
+    return;
+  }
+
+  // Tile / grid view (default)
+  el.className = 'fav-grid';
   el.innerHTML = filtered.map(f => {
     const icon = f._type === 'manual' ? '&#128196;' : '&#127909;';
     const typeLabel = f._type === 'manual' ? 'Manual' : 'Video';
+    const cat = catNames(f).join(' · ') || f.category || '';
     return `
-      <div class="manual-item" onclick="openFavorite('${f._type}', ${f.id})">
-        <div class="manual-icon">${icon}</div>
-        <div class="manual-info">
-          <div class="manual-title">${esc(f.title)}</div>
-          <div class="manual-category">${typeLabel} &middot; ${esc(catNames(f).join(' · ') || f.category || '')}</div>
+      <div class="fav-tile" onclick="openFavorite('${f._type}', ${f.id})">
+        <div class="fav-tile-cover">
+          ${f.thumbnail_url ? `<img class="ft-thumb" src="${esc(f.thumbnail_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+          <span class="ft-icon">${icon}</span>
+          <span class="fav-tile-type">${typeLabel}</span>
+          <button class="fav-tile-star" title="Remove from favourites"
+            onclick="event.stopPropagation();unfavoriteFromList('${f._type}', ${f.id})">&#9733;</button>
         </div>
-        <button class="manual-fav favorited" onclick="event.stopPropagation();unfavoriteFromList('${f._type}', ${f.id})">
-          &#9733;
-        </button>
+        <div class="fav-tile-body">
+          <div class="fav-tile-title">${esc(f.title)}</div>
+          <div class="fav-tile-cat">${cat || typeLabel}</div>
+        </div>
       </div>`;
   }).join('');
 }
