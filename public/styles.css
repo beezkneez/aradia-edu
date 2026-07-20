@@ -16,127 +16,130 @@
   --transition-smooth: 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ─── DARK THEME (default) ───────────────────────────────────────────────── */
+/* ─── DARK THEME ─────────────────────────────────────────────────────────── */
+/* Neutral warm-grays + Aradia wine accent (matches aradia-time dark). */
 [data-theme="dark"] {
-  --bg: #09090f;
-  --bg2: #0e0e16;
-  --bg3: #161522;
-  --surface: #131220;
-  --surface2: #1c1b2e;
-  --surface3: #242338;
-  --card-bg: #13122080;
+  --bg: #0c0c0e;
+  --bg2: #101013;
+  --bg3: #17171b;
+  --surface: #131316;
+  --surface2: #1c1c21;
+  --surface3: #26262c;
+  --card-bg: rgba(28,28,33,0.55);
   --card-border: rgba(255,255,255,0.06);
-  --card-hover: #1a1930;
+  --card-hover: #1a1a1f;
   --border: rgba(255,255,255,0.07);
   --border-hover: rgba(255,255,255,0.14);
-  --input-bg: #0f0e1a;
-  --input-border: rgba(255,255,255,0.08);
-  --text: #f2f1f8;
-  --text2: #a09cb8;
-  --text3: #5c5975;
-  --accent: #e8465a;
-  --accent-light: #ff6b7d;
-  --accent-glow: rgba(232,70,90,0.25);
-  --accent-bg: rgba(232,70,90,0.08);
-  --accent-bg2: rgba(232,70,90,0.15);
-  --gradient-accent: linear-gradient(135deg, #e8465a 0%, #ff8c6b 100%);
-  --gradient-hero: radial-gradient(ellipse at 50% -20%, rgba(232,70,90,0.15) 0%, transparent 60%);
-  --gradient-card: linear-gradient(135deg, rgba(232,70,90,0.03) 0%, rgba(255,140,107,0.02) 100%);
+  --input-bg: #0f0f12;
+  --input-border: rgba(255,255,255,0.09);
+  --text: #f0f0f2;
+  --text2: #a2a4ac;
+  --text3: #6b6d76;
+  --accent: #c8324e;
+  --accent-light: #e05570;
+  --accent-glow: rgba(200,50,78,0.28);
+  --accent-bg: rgba(200,50,78,0.09);
+  --accent-bg2: rgba(200,50,78,0.16);
+  --gradient-accent: linear-gradient(135deg, #a8203a 0%, #d13a56 100%);
+  --gradient-hero: radial-gradient(ellipse at 50% -20%, rgba(200,50,78,0.14) 0%, transparent 60%);
+  --gradient-card: linear-gradient(135deg, rgba(200,50,78,0.03) 0%, rgba(139,30,45,0.02) 100%);
   --success: #34d399;
   --success-bg: rgba(52,211,153,0.1);
   --warning: #fbbf24;
   --warning-bg: rgba(251,191,36,0.1);
   --danger: #fb7185;
   --danger-bg: rgba(251,113,133,0.1);
-  --header-bg: rgba(9,9,15,0.85);
-  --sidebar-bg: #0b0b13;
-  --sidebar-active: rgba(232,70,90,0.1);
+  --header-bg: rgba(12,12,14,0.85);
+  --sidebar-bg: #0b0b0d;
+  --sidebar-active: rgba(200,50,78,0.1);
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
   --shadow-lg: 0 16px 64px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 40px rgba(232,70,90,0.12);
+  --shadow-glow: 0 0 40px rgba(200,50,78,0.12);
   --overlay: rgba(0,0,0,0.65);
 }
 
-/* ─── LIGHT THEME ────────────────────────────────────────────────────────── */
+/* ─── LIGHT THEME (default — matches aradia-time) ────────────────────────── */
+/* Neutral cool-grays + Aradia wine accent (#8b1e2d), clean white cards. */
 [data-theme="light"] {
-  --bg: #f7f6fb;
+  --bg: #f2f3f6;
   --bg2: #ffffff;
-  --bg3: #edecf4;
+  --bg3: #eaebef;
   --surface: #ffffff;
-  --surface2: #f2f1f8;
-  --surface3: #e8e7f0;
-  --card-bg: rgba(255,255,255,0.85);
-  --card-border: rgba(0,0,0,0.06);
-  --card-hover: #faf9ff;
-  --border: rgba(0,0,0,0.07);
-  --border-hover: rgba(0,0,0,0.14);
-  --input-bg: #f2f1f8;
-  --input-border: rgba(0,0,0,0.08);
-  --text: #1a1730;
-  --text2: #57546e;
-  --text3: #908da8;
-  --accent: #d63050;
-  --accent-light: #e84660;
-  --accent-glow: rgba(214,48,80,0.18);
-  --accent-bg: rgba(214,48,80,0.06);
-  --accent-bg2: rgba(214,48,80,0.12);
-  --gradient-accent: linear-gradient(135deg, #d63050 0%, #e8705a 100%);
-  --gradient-hero: radial-gradient(ellipse at 50% -20%, rgba(214,48,80,0.08) 0%, transparent 60%);
-  --gradient-card: linear-gradient(135deg, rgba(214,48,80,0.02) 0%, rgba(232,112,90,0.01) 100%);
-  --success: #10b981;
-  --success-bg: rgba(16,185,129,0.08);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245,158,11,0.08);
-  --danger: #ef4444;
-  --danger-bg: rgba(239,68,68,0.08);
-  --header-bg: rgba(247,246,251,0.85);
-  --sidebar-bg: #faf9ff;
-  --sidebar-active: rgba(214,48,80,0.06);
-  --shadow: 0 2px 16px rgba(30,20,60,0.06);
-  --shadow-lg: 0 12px 48px rgba(30,20,60,0.10);
-  --shadow-glow: 0 0 40px rgba(214,48,80,0.06);
+  --surface2: #f4f5f7;
+  --surface3: #e9eaee;
+  --card-bg: rgba(255,255,255,0.9);
+  --card-border: rgba(17,18,22,0.07);
+  --card-hover: #fafbfc;
+  --border: #e7e7ea;
+  --border-hover: #d3d4d9;
+  --input-bg: #f7f8fa;
+  --input-border: #d7d9df;
+  --text: #16171b;
+  --text2: #55585f;
+  --text3: #8b8e97;
+  --accent: #8b1e2d;
+  --accent-light: #b0294a;
+  --accent-glow: rgba(139,30,45,0.16);
+  --accent-bg: rgba(139,30,45,0.06);
+  --accent-bg2: rgba(139,30,45,0.12);
+  --gradient-accent: linear-gradient(135deg, #8b1e2d 0%, #b0294a 100%);
+  --gradient-hero: radial-gradient(ellipse at 50% -20%, rgba(139,30,45,0.07) 0%, transparent 60%);
+  --gradient-card: linear-gradient(135deg, rgba(139,30,45,0.02) 0%, rgba(176,41,74,0.01) 100%);
+  --success: #2e7d32;
+  --success-bg: rgba(46,125,50,0.08);
+  --warning: #b7791f;
+  --warning-bg: rgba(183,121,31,0.08);
+  --danger: #c0392b;
+  --danger-bg: rgba(192,57,43,0.08);
+  --header-bg: rgba(242,243,246,0.85);
+  --sidebar-bg: #f7f8fa;
+  --sidebar-active: rgba(139,30,45,0.06);
+  --shadow: 0 2px 16px rgba(20,22,28,0.06);
+  --shadow-lg: 0 12px 48px rgba(20,22,28,0.10);
+  --shadow-glow: 0 0 40px rgba(139,30,45,0.05);
   --overlay: rgba(255,255,255,0.7);
 }
 
-/* ─── ARADIA THEME ───────────────────────────────────────────────────────── */
+/* ─── ARADIA THEME (default) ─────────────────────────────────────────────── */
+/* The branded default: deep wine-black canvas with Aradia burgundy accent. */
 [data-theme="aradia"] {
-  --bg: #0d0208;
-  --bg2: #140510;
-  --bg3: #1e0918;
-  --surface: #180714;
-  --surface2: #24101e;
-  --surface3: #301828;
-  --card-bg: rgba(24,7,20,0.8);
-  --card-border: rgba(232,70,90,0.12);
-  --card-hover: #221020;
-  --border: rgba(232,70,90,0.10);
-  --border-hover: rgba(232,70,90,0.20);
-  --input-bg: #120410;
-  --input-border: rgba(232,70,90,0.12);
-  --text: #fce4ec;
-  --text2: #c09aa8;
-  --text3: #7a5568;
-  --accent: #ff4d6a;
-  --accent-light: #ff7a8f;
-  --accent-glow: rgba(255,77,106,0.30);
-  --accent-bg: rgba(255,77,106,0.10);
-  --accent-bg2: rgba(255,77,106,0.18);
-  --gradient-accent: linear-gradient(135deg, #ff4d6a 0%, #ff9a6c 100%);
-  --gradient-hero: radial-gradient(ellipse at 50% -20%, rgba(255,77,106,0.20) 0%, transparent 55%);
-  --gradient-card: linear-gradient(135deg, rgba(255,77,106,0.05) 0%, rgba(255,154,108,0.03) 100%);
+  --bg: #0d0206;
+  --bg2: #14040a;
+  --bg3: #1e0810;
+  --surface: #18060d;
+  --surface2: #240e16;
+  --surface3: #301620;
+  --card-bg: rgba(24,6,13,0.8);
+  --card-border: rgba(176,41,74,0.14);
+  --card-hover: #220e16;
+  --border: rgba(176,41,74,0.12);
+  --border-hover: rgba(176,41,74,0.24);
+  --input-bg: #12040a;
+  --input-border: rgba(176,41,74,0.14);
+  --text: #f9e6ea;
+  --text2: #c39aa4;
+  --text3: #7d5560;
+  --accent: #d13a56;
+  --accent-light: #e8657e;
+  --accent-glow: rgba(209,58,86,0.32);
+  --accent-bg: rgba(209,58,86,0.10);
+  --accent-bg2: rgba(209,58,86,0.18);
+  --gradient-accent: linear-gradient(135deg, #a8203a 0%, #d13a56 100%);
+  --gradient-hero: radial-gradient(ellipse at 50% -20%, rgba(209,58,86,0.20) 0%, transparent 55%);
+  --gradient-card: linear-gradient(135deg, rgba(209,58,86,0.05) 0%, rgba(139,30,45,0.03) 100%);
   --success: #34d399;
   --success-bg: rgba(52,211,153,0.12);
   --warning: #fbbf24;
   --warning-bg: rgba(251,191,36,0.12);
   --danger: #ff6b8a;
   --danger-bg: rgba(255,107,138,0.12);
-  --header-bg: rgba(13,2,8,0.88);
-  --sidebar-bg: #0a0208;
-  --sidebar-active: rgba(255,77,106,0.12);
+  --header-bg: rgba(13,2,6,0.88);
+  --sidebar-bg: #0a0206;
+  --sidebar-active: rgba(209,58,86,0.12);
   --shadow: 0 4px 24px rgba(0,0,0,0.5);
   --shadow-lg: 0 16px 64px rgba(0,0,0,0.6);
-  --shadow-glow: 0 0 50px rgba(255,77,106,0.15);
-  --overlay: rgba(13,2,8,0.7);
+  --shadow-glow: 0 0 50px rgba(209,58,86,0.15);
+  --overlay: rgba(13,2,6,0.7);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -255,12 +258,26 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
   background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
 }
 
+.app-brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
 .app-title {
   font-family: var(--font-display); font-size: 22px; font-weight: 800;
   letter-spacing: -0.3px;
   background: var(--gradient-accent);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Brand logo image — mirrors aradia-time's brandLogoUrl setting. The artwork is
+   a white wordmark on transparent, so on the light theme it gets a dark plate to
+   stay legible; on the dark/aradia themes it sits directly on the surface. */
+.brand-logo { height: 34px; width: auto; display: block; object-fit: contain; }
+.brand-logo[hidden] { display: none; }
+.brand-logo-lg { height: 66px; margin: 0 auto 16px; }
+[data-theme="light"] .brand-logo {
+  background: #16060c; padding: 6px 13px; border-radius: 10px;
+}
+[data-theme="light"] .brand-logo-lg {
+  padding: 16px 22px; border-radius: 16px;
 }
 .header-nav { display: flex; gap: 3px; }
 .header-nav button {
@@ -645,12 +662,12 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 .completion-overlay.show-confetti .completion-card::before {
   content: ''; position: fixed; top: 0; left: 0; right: 0; height: 0;
   box-shadow:
-    10vw -10px 0 #e8465a, 20vw -30px 0 #ff8c6b, 30vw -20px 0 #34d399,
-    40vw -40px 0 #10b981, 50vw -15px 0 #ff4d6a, 60vw -35px 0 #fbbf24,
-    70vw -25px 0 #34d399, 80vw -10px 0 #ff8c6b, 90vw -45px 0 #ff4d6a,
-    15vw -50px 0 #10b981, 25vw -5px 0 #fbbf24, 35vw -55px 0 #ff6b7d,
-    45vw -20px 0 #34d399, 55vw -60px 0 #ff8c6b, 65vw -30px 0 #fbbf24,
-    75vw -15px 0 #10b981, 85vw -50px 0 #ff4d6a, 95vw -25px 0 #34d399;
+    10vw -10px 0 #8b1e2d, 20vw -30px 0 #d13a56, 30vw -20px 0 #34d399,
+    40vw -40px 0 #10b981, 50vw -15px 0 #b0294a, 60vw -35px 0 #fbbf24,
+    70vw -25px 0 #34d399, 80vw -10px 0 #d13a56, 90vw -45px 0 #a8203a,
+    15vw -50px 0 #10b981, 25vw -5px 0 #fbbf24, 35vw -55px 0 #e8657e,
+    45vw -20px 0 #34d399, 55vw -60px 0 #d13a56, 65vw -30px 0 #fbbf24,
+    75vw -15px 0 #10b981, 85vw -50px 0 #a8203a, 95vw -25px 0 #34d399;
   animation: confettiRain 2.5s ease-in forwards;
   z-index: -1; pointer-events: none;
 }

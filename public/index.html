@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="aradia">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,6 +18,7 @@
      ═══════════════════════════════════════════════════════════════════════ -->
 <div id="page_login">
   <div class="login-card">
+    <img id="login_logo_img" class="brand-logo brand-logo-lg" alt="" hidden>
     <div class="login-logo">Aradia EDU</div>
     <div class="login-sub">Staff Learning Platform</div>
     <input class="login-input" id="login_email" type="text" placeholder="Email or username" autocomplete="username">
@@ -34,7 +35,10 @@
 
   <!-- Header -->
   <header class="app-header">
-    <div class="app-title">Aradia EDU</div>
+    <div class="app-brand">
+      <img id="brand_logo_img" class="brand-logo" alt="" hidden>
+      <div class="app-title">Aradia EDU</div>
+    </div>
     <nav class="header-nav">
       <button data-nav="manuals" onclick="go('manuals')">Manuals</button>
       <button data-nav="videos" onclick="go('videos')">Videos</button>

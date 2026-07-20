@@ -483,6 +483,29 @@ async function initDB() {
 // API ROUTES
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ─── Brand logo (mirrors aradia-time) ────────────────────────────────────────
+// The studio's brand logo is stored once in the shared `settings` table under
+// key `brandLogoUrl` (edited from aradia-time's Branding card). We read the same
+// value so the EDU header/login show the identical logo — change it there, it
+// changes here. Cached in-process and refreshed periodically to stay off the hot
+// path. Falls back to the BRAND_LOGO_URL env var, then empty (text wordmark only).
+let _brandLogoUrl = process.env.BRAND_LOGO_URL || '';
+async function refreshBrandLogo() {
+  try {
+    const r = await pool.query(
+      `SELECT value FROM settings WHERE tenant_id=1 AND key='brandLogoUrl' LIMIT 1`
+    );
+    if (r.rows[0] && r.rows[0].value) _brandLogoUrl = r.rows[0].value;
+  } catch (e) { /* keep env / last-known value — non-critical */ }
+}
+refreshBrandLogo();
+const _brandTimer = setInterval(refreshBrandLogo, 5 * 60 * 1000);
+if (_brandTimer.unref) _brandTimer.unref();
+
+app.get('/api/brand', (req, res) => {
+  res.json({ ok: true, logoUrl: _brandLogoUrl || '' });
+});
+
 // ─── Auth ───────────────────────────────────────────────────────────────────
 app.post('/api/login', async (req, res) => {
   const { email, pin } = req.body;

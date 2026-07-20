@@ -57,7 +57,7 @@ async function apiUpload(type, file, extraFields = {}) {
    THEME
    ═══════════════════════════════════════════════════════════════════════════ */
 function toggleTheme() {
-  const themes = ['dark', 'light', 'aradia'];
+  const themes = ['aradia', 'light', 'dark'];
   const current = document.documentElement.getAttribute('data-theme');
   const idx = themes.indexOf(current);
   const next = themes[(idx + 1) % themes.length];
@@ -70,6 +70,25 @@ function applyStoredTheme() {
   if (stored) document.documentElement.setAttribute('data-theme', stored);
 }
 applyStoredTheme();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BRAND LOGO — mirrors aradia-time's brandLogoUrl setting (shared DB). Shown in
+   the header and on the login card. If unset, the text wordmark stands alone.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function applyBrandLogo() {
+  fetch('/api/brand')
+    .then(r => r.json())
+    .then(b => {
+      const url = b && b.logoUrl;
+      if (!url) return;
+      ['brand_logo_img', 'login_logo_img'].forEach(id => {
+        const img = document.getElementById(id);
+        if (img) { img.src = url; img.hidden = false; }
+      });
+    })
+    .catch(() => { /* leave the text wordmark as-is */ });
+}
+applyBrandLogo();
 
 /* ═══════════════════════════════════════════════════════════════════════════
    AUTH
@@ -174,11 +193,14 @@ function enterApp() {
     document.getElementById('nav_admin').style.display = '';
   }
 
-  if (!localStorage.getItem('edu_theme') && STATE.user.preferred_theme) {
-    const theme = STATE.user.preferred_theme;
-    document.documentElement.setAttribute('data-theme',
-      ['dark', 'light', 'aradia'].includes(theme) ? theme : 'dark');
-  }
+  // Follow the user's aradia-time theme preference on every login (it is the
+  // source of truth). The in-app toggle is a session-only override that resets
+  // to this preference next time they sign in. Default to the branded 'aradia'
+  // theme when no valid preference is set.
+  const pref = STATE.user.preferred_theme;
+  const theme = ['dark', 'light', 'aradia'].includes(pref) ? pref : 'aradia';
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('edu_theme', theme);
 
   const params = new URLSearchParams(location.search);
   const videoId = parseInt(params.get('video'), 10);
@@ -2057,7 +2079,7 @@ function uploadBunnyVideoModal() {
     </div>
     <div id="bv_progress" style="display:none;margin-bottom:12px">
       <div style="height:8px;background:var(--accent-bg2,#333);border-radius:4px;overflow:hidden">
-        <div id="bv_bar" style="height:100%;width:0;background:var(--accent,#e8465a);transition:width .2s"></div>
+        <div id="bv_bar" style="height:100%;width:0;background:var(--accent,#d13a56);transition:width .2s"></div>
       </div>
       <div id="bv_pct" style="font-size:12px;color:var(--text3);margin-top:6px">Uploading… 0%</div>
     </div>

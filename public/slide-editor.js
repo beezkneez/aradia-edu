@@ -696,7 +696,7 @@ async function importModuleFile(input) {
       await api('admin/createPage', {
         chapter_id: cr.chapter.id, title: baseTitle,
         content_type: 'rich_text',
-        content: { html: `<p>Imported from <strong>${esc(file.name)}</strong></p><p style="margin-top:16px"><a href="${r.filePath}" download style="display:inline-block;padding:10px 24px;background:#e8465a;color:#fff;border-radius:50px;font-weight:600;text-decoration:none">Download Original File</a></p>` },
+        content: { html: `<p>Imported from <strong>${esc(file.name)}</strong></p><p style="margin-top:16px"><a href="${r.filePath}" download style="display:inline-block;padding:10px 24px;background:var(--accent);color:#fff;border-radius:50px;font-weight:600;text-decoration:none">Download Original File</a></p>` },
         video_url: '', video_required: false, background_image: ''
       });
     }
@@ -729,7 +729,7 @@ function showImportSplitModal(pageCount, baseTitle) {
     <button onclick="addImportChapter()" style="padding:8px 18px;border-radius:50px;background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;border:1px solid var(--border);margin-bottom:20px;width:100%;text-align:center">+ Add Another Chapter</button>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button onclick="executeImportSplit()" style="padding:10px 24px;border-radius:50px;background:#e8465a;color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Build Module</button>
+      <button onclick="executeImportSplit()" style="padding:10px 24px;border-radius:50px;background:var(--accent);color:#fff;font-family:'Outfit',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:none">Build Module</button>
     </div>
   `);
   renderImportChapterRows();
@@ -797,7 +797,7 @@ async function executeImportSplit() {
     <div style="margin:20px 0">
       <div style="font-size:13px;color:var(--text2);margin-bottom:12px" id="import_progress_text">Preparing...</div>
       <div style="height:6px;background:var(--input-bg);border-radius:3px;overflow:hidden">
-        <div id="import_progress_bar" style="height:100%;width:0%;background:linear-gradient(90deg,#e8465a,#ff8c6b);border-radius:3px;transition:width 0.3s ease"></div>
+        <div id="import_progress_bar" style="height:100%;width:0%;background:var(--gradient-accent);border-radius:3px;transition:width 0.3s ease"></div>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px" id="import_progress_detail"></div>
     </div>
