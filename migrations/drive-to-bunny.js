@@ -50,7 +50,8 @@ const saveMap = (m) => fs.writeFileSync(MAP_FILE, JSON.stringify(m, null, 2));
 
 async function downloadDrive(id, dest, attempt = 0) {
   const r = await fetch(driveMediaUrl(id));
-  if (r.status === 403 && attempt < 6) { await sleep(15000 * (attempt + 1)); return downloadDrive(id, dest, attempt + 1); }
+  // Google throttles bulk downloads with 403; wait it out (up to ~10 min/file).
+  if (r.status === 403 && attempt < 10) { await sleep(Math.min(60000, 20000 * (attempt + 1))); return downloadDrive(id, dest, attempt + 1); }
   if (!r.ok) throw new Error('download HTTP ' + r.status);
   await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(dest));
   return fs.statSync(dest).size;
@@ -103,7 +104,7 @@ async function migrate() {
   const rows = (await q(`SELECT id, title, category, file_path FROM edu_videos WHERE file_type='drive_video' ORDER BY id`)).rows;
   const todo = rows.slice(0, LIMIT === Infinity ? rows.length : LIMIT);
   console.log(`${rows.length} videos still on Drive. Migrating ${todo.length} (proxy through this machine).\n`);
-  let done = 0, failed = 0, gb = 0;
+  let done = 0, failed = 0, gb = 0, consec403 = 0;
   for (const row of todo) {
     const id = driveId(row.file_path);
     if (!id) { console.log(`  [${row.id}] SKIP — no Drive id`); continue; }
@@ -117,16 +118,19 @@ async function migrate() {
       await q(`UPDATE edu_videos SET file_path=$1, file_type='bunny_video' WHERE id=$2`, [embed, row.id]);
       map[row.id] = { id: row.id, title: row.title, category: row.category, drive_id: id, drive_url: row.file_path, bunny_guid: guid, embed_url: embed };
       saveMap(map);
-      gb += size / 1e9; done++;
+      gb += size / 1e9; done++; consec403 = 0;
       console.log(`  [${row.id}] OK — ${row.title} (${(size/1e6).toFixed(0)}MB) → ${guid}   [${done}/${todo.length}]`);
     } catch (e) {
       failed++;
       if (guid) await bunnyDelete(guid); // roll back partial
       console.log(`  [${row.id}] FAIL — ${row.title}: ${e.message}`);
+      // Sustained 403s = Google is throttling hard; back off for a few minutes.
+      if (/403/.test(e.message)) { if (++consec403 >= 2) { console.log('  …throttled, cooling down 3 min…'); await sleep(180000); consec403 = 0; } }
+      else consec403 = 0;
     } finally {
       try { fs.unlinkSync(tmp); } catch {}
     }
-    await sleep(500);
+    await sleep(2500); // steady pacing to stay under Google's rate limit
   }
   console.log(`\nDone: ${done} migrated, ${failed} failed, ${gb.toFixed(2)} GB moved this run. Map → ${MAP_FILE}`);
   if (failed) console.log('Re-run the same command to retry the failed ones (idempotent).');
