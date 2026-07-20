@@ -740,9 +740,13 @@ function renderManualsList() {
     return;
   }
 
-  el.innerHTML = filtered.map(m => `
+  el.innerHTML = filtered.map(m => {
+    const icon = m.category_image
+      ? `<div class="manual-icon manual-icon-img"><img src="${esc(m.category_image)}" alt="" loading="lazy" onerror="this.remove()"></div>`
+      : `<div class="manual-icon">${m.file_type === 'pdf' ? '&#128196;' : '&#128195;'}</div>`;
+    return `
     <div class="manual-item ${STATE.selectedManual === m.id ? 'active' : ''}" onclick="selectManual(${m.id})">
-      <div class="manual-icon">${m.file_type === 'pdf' ? '&#128196;' : '&#128195;'}</div>
+      ${icon}
       <div class="manual-info">
         <div class="manual-title">${esc(m.title)}</div>
         <div class="manual-category">${esc(catNames(m).join(' · '))}</div>
@@ -750,8 +754,8 @@ function renderManualsList() {
       <button class="manual-fav ${m.is_favorite ? 'favorited' : ''}" onclick="event.stopPropagation();toggleFavorite(${m.id})">
         ${m.is_favorite ? '&#9733;' : '&#9734;'}
       </button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function selectManual(id) {
@@ -1104,9 +1108,13 @@ function renderVideosList() {
     return;
   }
 
-  el.innerHTML = filtered.map(v => `
+  el.innerHTML = filtered.map(v => {
+    const icon = v.category_image
+      ? `<div class="manual-icon manual-icon-img"><img src="${esc(v.category_image)}" alt="" loading="lazy" onerror="this.remove()"></div>`
+      : `<div class="manual-icon">&#127909;</div>`;
+    return `
     <div class="manual-item ${STATE.selectedVideo === v.id ? 'active' : ''}" onclick="selectVideo(${v.id})">
-      <div class="manual-icon">&#127909;</div>
+      ${icon}
       <div class="manual-info">
         <div class="manual-title">${esc(v.title)}</div>
         <div class="manual-category">${esc(catNames(v).join(' · '))}</div>
@@ -1114,7 +1122,8 @@ function renderVideosList() {
       <button class="manual-fav ${v.is_favorite ? 'favorited' : ''}" onclick="event.stopPropagation();toggleVideoFav(${v.id})">
         &#9733;
       </button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function selectVideo(id) {
@@ -2492,8 +2501,10 @@ function renderAdminCategories() {
     const vc = parseInt(c.video_count, 10) || 0;
     const usage = (mc + vc) === 0 ? 'Unused'
       : `${mc} manual${mc === 1 ? '' : 's'} · ${vc} video${vc === 1 ? '' : 's'}`;
+    const thumb = c.image_url ? `<img class="cat-row-thumb" src="${esc(c.image_url)}" alt="">` : '<div class="cat-row-thumb cat-row-thumb-empty">🏷️</div>';
     return `
       <div class="admin-module-row">
+        ${thumb}
         <div class="admin-module-info">
           <div class="admin-module-name">${esc(c.name)}</div>
           <div class="admin-module-meta">${esc(APPLIES_LABEL[c.applies_to] || c.applies_to)} &middot; ${usage}</div>
@@ -2522,6 +2533,20 @@ function editAdminCategory(id) {
         ${opt('both', 'Manuals &amp; Videos')}${opt('manual', 'Manuals only')}${opt('video', 'Videos only')}
       </select>
     </div>
+    <div class="form-group">
+      <label class="form-label">Category image</label>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div id="cat_img_preview" class="cat-img-preview">${c.image_url ? `<img src="${esc(c.image_url)}">` : '<span>No image</span>'}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label class="btn-secondary" style="cursor:pointer;font-size:13px;text-align:center">
+            <span id="cat_img_btn_label">${c.image_url ? 'Replace image' : 'Upload image'}</span>
+            <input type="file" accept="image/*" style="display:none" onchange="uploadCategoryImage(${id}, this)">
+          </label>
+          <button class="btn-secondary" id="cat_img_remove" style="font-size:13px;${c.image_url ? '' : 'display:none'}" onclick="clearCategoryImage(${id})">Remove</button>
+        </div>
+      </div>
+      <div class="upload-hint" style="color:var(--text3);font-size:12px;margin-top:6px">Shows as the icon on every video &amp; manual in this category (e.g. a pole, hoop or silks photo).</div>
+    </div>
     <div class="upload-hint" style="color:var(--text3);font-size:12px;margin-bottom:12px">
       Renaming also updates every manual and video currently using this category.
     </div>
@@ -2540,6 +2565,34 @@ async function updateAdminCategory(id) {
   if (!r.ok) return toast(r.reason || 'Failed to update', 'error');
   hideModal();
   toast('Category updated', 'success');
+  loadAdminCategories();
+}
+
+async function uploadCategoryImage(id, input) {
+  if (!input.files[0]) return;
+  toast('Uploading…', 'info');
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+  fd.append('email', STATE.email); fd.append('pin', STATE.pin);
+  fd.append('category_id', id);
+  const r = await (await fetch('/api/admin/uploadCategoryImage', { method: 'POST', body: fd })).json();
+  if (!r.ok) return toast(r.reason || 'Upload failed', 'error');
+  toast('Category image updated', 'success');
+  const c = (STATE.adminCategories || []).find(x => x.id === id); if (c) c.image_url = r.image_url;
+  const prev = document.getElementById('cat_img_preview'); if (prev) prev.innerHTML = `<img src="${esc(r.image_url)}">`;
+  const lbl = document.getElementById('cat_img_btn_label'); if (lbl) lbl.textContent = 'Replace image';
+  const rm = document.getElementById('cat_img_remove'); if (rm) rm.style.display = '';
+  loadAdminCategories();
+}
+
+async function clearCategoryImage(id) {
+  const r = await api('admin/clearCategoryImage', { category_id: id });
+  if (!r.ok) return toast(r.reason || 'Failed', 'error');
+  toast('Image removed', 'success');
+  const c = (STATE.adminCategories || []).find(x => x.id === id); if (c) c.image_url = '';
+  const prev = document.getElementById('cat_img_preview'); if (prev) prev.innerHTML = '<span>No image</span>';
+  const lbl = document.getElementById('cat_img_btn_label'); if (lbl) lbl.textContent = 'Upload image';
+  const rm = document.getElementById('cat_img_remove'); if (rm) rm.style.display = 'none';
   loadAdminCategories();
 }
 

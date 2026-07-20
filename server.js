@@ -499,6 +499,9 @@ async function initDB() {
         AND NOT EXISTS (SELECT 1 FROM edu_video_categories vc WHERE vc.video_id = v.id)
       ON CONFLICT DO NOTHING;
     `);
+
+    // Category cover image (uploaded to Bunny Storage) — shown as the row icon.
+    await client.query(`ALTER TABLE edu_categories ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT ''`);
     console.log('EDU tables initialized');
   } catch (e) {
     console.error('DB init error:', e);
@@ -1097,8 +1100,11 @@ app.post('/api/getManuals', async (req, res) => {
   );
   const favSet = new Set(favorites.rows.map(f => f.manual_id));
 
+  const catImgM = await categoryImageMap();
   for (const m of manuals) {
     m.is_favorite = favSet.has(m.id);
+    const ck = (m.category || (m.category_names && m.category_names[0]) || '').toLowerCase();
+    m.category_image = catImgM[ck] || '';
   }
 
   // Attach the videos linked to each manual (for the "Related videos" section
@@ -1234,9 +1240,12 @@ app.post('/api/getVideos', async (req, res) => {
     [user.email]
   );
   const favSet = new Set(favorites.rows.map(f => f.video_id));
+  const catImg = await categoryImageMap();
   for (const v of videos) {
     v.is_favorite = favSet.has(v.id);
     v.thumbnail_url = videoThumbnailUrl(v);
+    const ck = (v.category || (v.category_names && v.category_names[0]) || '').toLowerCase();
+    v.category_image = catImg[ck] || '';
   }
 
   // Attach the manuals each video is linked to (for the "Appears in" section in
@@ -1524,7 +1533,7 @@ app.post('/api/getCategories', async (req, res) => {
   if (!user) return res.json({ ok: false, reason: 'Unauthorized' });
   const surface = req.body.for === 'video' ? 'video' : 'manual';
   const r = await pool.query(
-    `SELECT id, name, applies_to FROM edu_categories
+    `SELECT id, name, applies_to, image_url FROM edu_categories
      WHERE applies_to = 'both' OR applies_to = $1
      ORDER BY sort_order, name`,
     [surface]
@@ -1541,7 +1550,7 @@ app.post('/api/admin/getAllCategories', async (req, res) => {
   // fallback (no join rows). Counting only the text column would miss every
   // secondary category of a multi-category item.
   const r = await pool.query(
-    `SELECT c.id, c.name, c.applies_to,
+    `SELECT c.id, c.name, c.applies_to, c.image_url,
             (SELECT COUNT(*) FROM edu_manual_categories mc WHERE mc.category_id = c.id)
             + (SELECT COUNT(*) FROM edu_manuals m WHERE m.category = c.name
                  AND NOT EXISTS (SELECT 1 FROM edu_manual_categories mc2 WHERE mc2.manual_id = m.id)) AS manual_count,
@@ -1626,6 +1635,49 @@ app.post('/api/admin/deleteCategory', async (req, res) => {
   await pool.query('DELETE FROM edu_categories WHERE id=$1', [req.body.category_id]);
   res.json({ ok: true });
 });
+
+// ─── Admin: category cover image (Bunny Storage) ────────────────────────────
+app.post('/api/admin/uploadCategoryImage', bunnyUpload.single('file'), async (req, res) => {
+  const tmpPath = req.file && req.file.path;
+  try {
+    const user = await getAuthorizedUser(req.body.email, req.body.pin);
+    if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+    if (!bunnyStorageConfigured()) return res.json({ ok: false, reason: 'File hosting is not configured — set BUNNY_STORAGE_*.' });
+    if (!req.file) return res.json({ ok: false, reason: 'No file uploaded' });
+    const id = parseInt(req.body.category_id, 10);
+    if (!id) return res.json({ ok: false, reason: 'Missing category' });
+    const ext = (path.extname(req.file.originalname) || '.jpg').toLowerCase();
+    const url = await bunnyStoragePut(`categories/${uuidv4()}${ext}`, fs.readFileSync(tmpPath));
+    const old = await pool.query('SELECT image_url FROM edu_categories WHERE id=$1', [id]);
+    await pool.query('UPDATE edu_categories SET image_url=$1 WHERE id=$2', [url, id]);
+    if (old.rows[0] && old.rows[0].image_url) await maybeDeleteFromBunnyStorage(old.rows[0].image_url);
+    res.json({ ok: true, image_url: url });
+  } catch (e) {
+    console.error('uploadCategoryImage error:', e);
+    res.json({ ok: false, reason: 'Upload failed: ' + (e.message || 'unknown error') });
+  } finally {
+    if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (_) {} }
+  }
+});
+
+app.post('/api/admin/clearCategoryImage', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  const id = parseInt(req.body.category_id, 10);
+  if (!id) return res.json({ ok: false, reason: 'Missing category' });
+  const old = await pool.query('SELECT image_url FROM edu_categories WHERE id=$1', [id]);
+  await pool.query(`UPDATE edu_categories SET image_url='' WHERE id=$1`, [id]);
+  if (old.rows[0] && old.rows[0].image_url) await maybeDeleteFromBunnyStorage(old.rows[0].image_url);
+  res.json({ ok: true });
+});
+
+// Map of lower(category name) → cover image URL, for tagging videos/manuals.
+async function categoryImageMap() {
+  const r = await pool.query(`SELECT name, image_url FROM edu_categories WHERE image_url <> ''`);
+  const m = {};
+  r.rows.forEach(c => { m[(c.name || '').toLowerCase()] = c.image_url; });
+  return m;
+}
 
 // ─── Admin: Manual CRUD ─────────────────────────────────────────────────────
 app.post('/api/admin/createManual', async (req, res) => {

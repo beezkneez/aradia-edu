@@ -1273,6 +1273,21 @@ textarea.form-input { min-height: 80px; resize: vertical; line-height: 1.6; }
 .media-grid .fav-tile-cover { height: 92px; }
 .media-grid .fav-tile.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
+/* Category cover images — row icons (Manuals/Videos) + admin Categories */
+.manual-icon-img { width: 38px; height: 38px; border-radius: 9px; overflow: hidden; flex-shrink: 0; background: var(--surface2); }
+.manual-icon-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cat-img-preview {
+  width: 68px; height: 68px; border-radius: 12px; overflow: hidden; flex-shrink: 0;
+  background: var(--surface2); display: flex; align-items: center; justify-content: center;
+  color: var(--text3); font-size: 11px; text-align: center;
+}
+.cat-img-preview img { width: 100%; height: 100%; object-fit: cover; }
+.cat-row-thumb {
+  width: 36px; height: 36px; border-radius: 8px; object-fit: cover; margin-right: 12px;
+  flex-shrink: 0; background: var(--surface2);
+}
+.cat-row-thumb-empty { display: flex; align-items: center; justify-content: center; font-size: 16px; opacity: 0.5; }
+
 .view-toggle {
   display: inline-flex; gap: 3px; padding: 3px; flex-shrink: 0;
   background: var(--surface2); border: 1px solid var(--border);
