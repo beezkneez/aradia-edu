@@ -25,6 +25,11 @@ let map = {};
 try { map = JSON.parse(fs.readFileSync(MAP_FILE, 'utf8')); } catch { console.error('No map file yet — run the video migration first.'); process.exit(1); }
 const byDriveId = {};
 Object.values(map).forEach(e => { if (e.drive_id) byDriveId[e.drive_id] = e; });
+// Merge the "extras" map (manual-only videos migrated by migrate-extras.js).
+try {
+  const extras = JSON.parse(fs.readFileSync(path.join(__dirname, 'extras-map.json'), 'utf8'));
+  Object.values(extras).forEach(e => { if (e.drive_id) byDriveId[e.drive_id] = e; });
+} catch {}
 console.log(`Map has ${Object.keys(byDriveId).length} migrated Drive IDs.\n`);
 
 const RELS = 'word/_rels/document.xml.rels';
