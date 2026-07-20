@@ -15,10 +15,14 @@ const STATE = {
   selectedManual: null,
   videos: [],
   videosFilter: 'all',
+  videosView: localStorage.getItem('edu_videos_view') || 'grid',
   selectedVideo: null,
   favorites: [],
   favoritesFilter: 'all',
   favoritesView: localStorage.getItem('edu_fav_view') || 'grid',
+  manualsSort: localStorage.getItem('edu_manuals_sort') || 'az',
+  videosSort: localStorage.getItem('edu_videos_sort') || 'az',
+  favoritesSort: localStorage.getItem('edu_fav_sort') || 'az',
   adminModules: [],
   adminManuals: [],
   adminVideos: [],
@@ -700,6 +704,21 @@ function setManualFilter(filter) {
 
 function filterManuals() { renderManualsList(); }
 
+// ── Sorting (shared across Manuals / Videos / Favourites) ───────────────────
+function sortItems(arr, mode) {
+  const out = arr.slice();
+  const t = x => (x.title || '').toLowerCase();
+  const d = x => new Date(x.uploaded_at || x.created_at || x.favorited_at || 0).getTime() || (x.id || 0);
+  if (mode === 'za') out.sort((a, b) => t(b).localeCompare(t(a)));
+  else if (mode === 'newest') out.sort((a, b) => d(b) - d(a));
+  else if (mode === 'oldest') out.sort((a, b) => d(a) - d(b));
+  else out.sort((a, b) => t(a).localeCompare(t(b))); // 'az'
+  return out;
+}
+function setManualsSort(v) { STATE.manualsSort = v; localStorage.setItem('edu_manuals_sort', v); renderManualsList(); }
+function setVideosSort(v) { STATE.videosSort = v; localStorage.setItem('edu_videos_sort', v); renderVideosList(); }
+function setFavoritesSort(v) { STATE.favoritesSort = v; localStorage.setItem('edu_fav_sort', v); renderFavoritesList(); }
+
 function renderManualsList() {
   const search = (document.getElementById('manuals_search').value || '').toLowerCase();
   let filtered = STATE.manuals;
@@ -713,11 +732,8 @@ function renderManualsList() {
     );
   }
 
-  filtered.sort((a, b) => {
-    if (a.is_favorite && !b.is_favorite) return -1;
-    if (!a.is_favorite && b.is_favorite) return 1;
-    return 0;
-  });
+  filtered = sortItems(filtered, STATE.manualsSort);
+  const msort = document.getElementById('manuals_sort'); if (msort) msort.value = STATE.manualsSort;
 
   const el = document.getElementById('manuals_list');
   if (filtered.length === 0) {
@@ -1081,12 +1097,39 @@ function renderVideosList() {
     catNames(v).join(' ').toLowerCase().includes(search)
   );
 
+  filtered = sortItems(filtered, STATE.videosSort);
+  const vsort = document.getElementById('videos_sort'); if (vsort) vsort.value = STATE.videosSort;
+  syncVideosViewToggle();
+
   const el = document.getElementById('videos_list');
   if (filtered.length === 0) {
+    el.className = 'manuals-list';
     el.innerHTML = '<div class="empty-state"><p>No videos found</p></div>';
     return;
   }
 
+  if (STATE.videosView === 'grid') {
+    el.className = 'manuals-list media-grid';
+    el.innerHTML = filtered.map(v => {
+      const cat = catNames(v).join(' · ') || '';
+      return `
+        <div class="fav-tile ${STATE.selectedVideo === v.id ? 'active' : ''}" onclick="selectVideo(${v.id})">
+          <div class="fav-tile-cover">
+            ${v.thumbnail_url ? `<img class="ft-thumb" src="${esc(v.thumbnail_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+            <span class="ft-icon">&#127909;</span>
+            <button class="fav-tile-star ${v.is_favorite ? 'favorited' : ''}" title="Favourite"
+              onclick="event.stopPropagation();toggleVideoFav(${v.id})">&#9733;</button>
+          </div>
+          <div class="fav-tile-body">
+            <div class="fav-tile-title">${esc(v.title)}</div>
+            <div class="fav-tile-cat">${esc(cat)}</div>
+          </div>
+        </div>`;
+    }).join('');
+    return;
+  }
+
+  el.className = 'manuals-list';
   el.innerHTML = filtered.map(v => `
     <div class="manual-item ${STATE.selectedVideo === v.id ? 'active' : ''}" onclick="selectVideo(${v.id})">
       <div class="manual-icon">&#127909;</div>
@@ -1098,6 +1141,17 @@ function renderVideosList() {
         &#9733;
       </button>
     </div>`).join('');
+}
+
+function setVideosView(view) {
+  STATE.videosView = view === 'list' ? 'list' : 'grid';
+  localStorage.setItem('edu_videos_view', STATE.videosView);
+  syncVideosViewToggle();
+  renderVideosList();
+}
+function syncVideosViewToggle() {
+  document.querySelectorAll('#videos_view_toggle .view-toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === STATE.videosView));
 }
 
 function selectVideo(id) {
@@ -1250,6 +1304,8 @@ function renderFavoritesList() {
   if (search) filtered = filtered.filter(f =>
     f.title.toLowerCase().includes(search) || (f.description || '').toLowerCase().includes(search)
   );
+  filtered = sortItems(filtered, STATE.favoritesSort);
+  const fsort = document.getElementById('favorites_sort'); if (fsort) fsort.value = STATE.favoritesSort;
 
   const el = document.getElementById('favorites_list');
   if (filtered.length === 0) {

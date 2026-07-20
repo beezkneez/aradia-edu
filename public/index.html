@@ -113,6 +113,14 @@
             <input class="manuals-search" id="manuals_search" placeholder="Search manuals..." oninput="filterManuals()">
           </div>
           <div class="manuals-filter" id="manuals_filter"></div>
+          <div class="list-controls">
+            <select class="sort-select" id="manuals_sort" onchange="setManualsSort(this.value)" aria-label="Sort manuals">
+              <option value="az">A–Z</option>
+              <option value="za">Z–A</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+            </select>
+          </div>
         </div>
         <div class="manuals-list" id="manuals_list"></div>
       </aside>
@@ -134,6 +142,18 @@
             <input class="manuals-search" id="videos_search" placeholder="Search videos..." oninput="filterVideos()">
           </div>
           <div class="manuals-filter" id="videos_filter"></div>
+          <div class="list-controls">
+            <div class="view-toggle" id="videos_view_toggle">
+              <button class="view-toggle-btn" data-view="grid" onclick="setVideosView('grid')" title="Tile view"><span class="vt-ico">&#9638;</span> Tiles</button>
+              <button class="view-toggle-btn" data-view="list" onclick="setVideosView('list')" title="List view"><span class="vt-ico">&#9776;</span> List</button>
+            </div>
+            <select class="sort-select" id="videos_sort" onchange="setVideosSort(this.value)" aria-label="Sort videos">
+              <option value="az">A–Z</option>
+              <option value="za">Z–A</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+            </select>
+          </div>
         </div>
         <div class="manuals-list" id="videos_list"></div>
       </aside>
@@ -169,6 +189,12 @@
               <input class="manuals-search" id="favorites_search" placeholder="Search favourites..." oninput="renderFavoritesList()">
             </div>
             <div class="manuals-filter" id="favorites_filter"></div>
+            <select class="sort-select" id="favorites_sort" onchange="setFavoritesSort(this.value)" aria-label="Sort favourites">
+              <option value="az">A–Z</option>
+              <option value="za">Z–A</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+            </select>
           </div>
         </div>
         <div class="fav-scroll">
