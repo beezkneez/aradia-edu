@@ -891,7 +891,7 @@ async function renderManualPdf(id) {
   for (let n = 1; n <= pdf.numPages; n++) {
     const h = document.createElement('div');
     h.dataset.page = n;
-    h.style.cssText = 'margin:0 auto 8px;width:100%;max-width:900px;min-height:' + Math.round(width * ratio) + 'px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)';
+    h.style.cssText = 'position:relative;margin:0 auto 8px;width:100%;max-width:900px;min-height:' + Math.round(width * ratio) + 'px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)';
     c.appendChild(h); holders.push(h);
   }
   async function renderPage(n) {
@@ -902,9 +902,24 @@ async function renderManualPdf(id) {
     const canvas = document.createElement('canvas');
     canvas.width = vp.width; canvas.height = vp.height;
     canvas.style.cssText = 'display:block;width:100%;height:auto';
-    holders[n - 1].style.minHeight = '';
-    holders[n - 1].appendChild(canvas);
+    const holder = holders[n - 1];
+    holder.style.minHeight = '';
+    holder.appendChild(canvas);
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    // Overlay clickable link areas — a canvas alone has no live hyperlinks.
+    try {
+      const annots = await page.getAnnotations({ intent: 'display' });
+      annots.filter(a => a.subtype === 'Link' && a.url).forEach(a => {
+        const r = vp.convertToViewportRectangle(a.rect);
+        const x = Math.min(r[0], r[2]) / dpr, y = Math.min(r[1], r[3]) / dpr;
+        const w = Math.abs(r[2] - r[0]) / dpr, hh = Math.abs(r[3] - r[1]) / dpr;
+        const link = document.createElement('a');
+        link.href = a.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.title = a.url;
+        link.style.cssText = 'position:absolute;left:' + x + 'px;top:' + y + 'px;width:' + w + 'px;height:' + hh + 'px;z-index:2';
+        holder.appendChild(link);
+      });
+    } catch (e) {}
   }
   const io = new IntersectionObserver((ents) => {
     ents.forEach(e => { if (e.isIntersecting) renderPage(+e.target.dataset.page); });
