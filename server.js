@@ -49,6 +49,50 @@ const BUNNY_CDN = (process.env.BUNNY_STREAM_CDN_HOSTNAME || '').trim()
   .replace(/^https?:\/\//, '').replace(/\/+$/, '');
 const bunnyConfigured = () => Boolean(BUNNY_LIB && BUNNY_KEY);
 const bunnyEmbedUrl = (guid) => `https://iframe.mediadelivery.net/embed/${BUNNY_LIB}/${guid}`;
+// Token authentication key from the Bunny Stream library (Security tab).
+// Absent means signing is off and URLs are served as they always were, so
+// deploying this changes nothing until the key is set and token auth is
+// switched on in Bunny — the two have to happen together or every video
+// breaks.
+const BUNNY_TOKEN_KEY = (process.env.BUNNY_STREAM_TOKEN_KEY || '').trim();
+const bunnyTokenAuthOn = () => Boolean(BUNNY_TOKEN_KEY);
+
+// How long a signed URL stays valid. Long enough to watch a long video and
+// scrub around in it; short enough that a link pasted into a group chat is
+// dead well before most people click it.
+const BUNNY_TOKEN_TTL_SECONDS = parseInt(process.env.BUNNY_TOKEN_TTL_SECONDS || '14400', 10); // 4h
+
+// Bunny expects SHA256(securityKey + videoId + expiry) as lowercase hex.
+function bunnySignedEmbed(guid, ttl) {
+  const url = bunnyEmbedUrl(guid);
+  if (!bunnyTokenAuthOn() || !guid) return url;
+  const expires = Math.floor(Date.now() / 1000) + (ttl || BUNNY_TOKEN_TTL_SECONDS);
+  const token = require('crypto')
+    .createHash('sha256')
+    .update(BUNNY_TOKEN_KEY + guid + expires)
+    .digest('hex');
+  return `${url}?token=${token}&expires=${expires}`;
+}
+
+// Rewrites a stored file_path into a signed one. Anything that is not a Bunny
+// URL — the legacy Google Drive videos — is returned untouched.
+function bunnySignPath(fp) {
+  const guid = bunnyGuidFromPath(fp);
+  if (!guid) return fp;
+  return bunnySignedEmbed(guid);
+}
+
+// Signs every video-bearing field on a row or list of rows, in place.
+function signVideoRows(rows) {
+  const list = Array.isArray(rows) ? rows : [rows];
+  for (const r of list) {
+    if (!r) continue;
+    if (r.file_path) r.file_path = bunnySignPath(r.file_path);
+    if (r.video_url) r.video_url = bunnySignPath(r.video_url);
+  }
+  return rows;
+}
+
 function bunnyGuidFromPath(fp) {
   const m = String(fp || '').match(/iframe\.mediadelivery\.net\/(?:embed|play)\/\d+\/([a-f0-9-]{36})/i);
   return m ? m[1] : null;
@@ -1231,9 +1275,9 @@ app.post('/api/getVideos', async (req, res) => {
     'SELECT * FROM edu_videos ORDER BY category, sort_order, title'
   );
   await attachCategories(all.rows, 'edu_video_categories', 'video_id');
-  const videos = isAdminOrMod(user)
+  const videos = signVideoRows(isAdminOrMod(user)
     ? all.rows
-    : all.rows.filter(v => (v.category_names || []).some(cn => categoryVisibleTo(cn, user.teaches)));
+    : all.rows.filter(v => (v.category_names || []).some(cn => categoryVisibleTo(cn, user.teaches))));
 
   const favorites = await pool.query(
     'SELECT video_id FROM edu_video_favorites WHERE LOWER(user_email)=LOWER($1)',
