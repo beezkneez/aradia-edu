@@ -2510,8 +2510,51 @@ async function updateVideo(id) {
   hideModal(); toast('Video updated', 'success'); loadAdminVideos();
 }
 
+// Deleting a video breaks every manual that linked to it (links point at the
+// id). Warn about that the first time; the toggle remembers per browser that
+// this admin has understood and just wants the quick confirm from then on.
+const SKIP_VIDEO_DELETE_WARNING = 'edu_skip_video_delete_warning';
+
 async function deleteVideo(id) {
-  if (!confirm('Delete this video?')) return;
+  let skipWarning = false;
+  try { skipWarning = localStorage.getItem(SKIP_VIDEO_DELETE_WARNING) === '1'; } catch (_) {}
+  if (skipWarning) {
+    if (!confirm('Delete this video?')) return;
+    return performDeleteVideo(id);
+  }
+  const v = (STATE.adminVideos || []).find(x => x.id === id);
+  const title = v ? v.title : 'this video';
+  showModal(`
+    <h3>Delete "${esc(title)}"?</h3>
+    <div class="admin-note" style="margin:0 0 16px">
+      <strong>Heads up:</strong> any manual that links to this video will stop working. Uploading it
+      again does not fix that: the new upload gets a new ID and a new link. If you only need to swap
+      the file or fix the title, close this and use <strong>Edit</strong> instead.
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Don't warn me about this again</span>
+      <label class="admin-toggle">
+        <input type="checkbox" id="dv_skip_warning">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-danger" onclick="confirmDeleteVideo(${id})">Delete anyway</button>
+    </div>
+  `);
+}
+
+function confirmDeleteVideo(id) {
+  const skip = document.getElementById('dv_skip_warning');
+  if (skip && skip.checked) {
+    try { localStorage.setItem(SKIP_VIDEO_DELETE_WARNING, '1'); } catch (_) {}
+  }
+  hideModal();
+  performDeleteVideo(id);
+}
+
+async function performDeleteVideo(id) {
   const r = await api('admin/deleteVideo', { video_id: id });
   if (r.ok) { toast('Video deleted', 'success'); loadAdminVideos(); }
 }

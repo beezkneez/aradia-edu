@@ -929,6 +929,12 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 .admin-toggle input:checked + .slider { background: var(--accent); }
 .admin-toggle input:checked + .slider::before { transform: translateX(20px); }
 .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.admin-note {
+  margin-top: 12px; padding: 10px 14px; border-radius: 12px;
+  background: var(--warning-bg); border: 1px solid var(--warning);
+  color: var(--text2, var(--text)); font-size: 13px; line-height: 1.5;
+}
+.admin-note strong { color: var(--text); }
 .toggle-label { font-size: 14px; color: var(--text); }
 
 /* Module Editor */
