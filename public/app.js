@@ -1135,14 +1135,18 @@ function selectVideo(id) {
   const playerPane = `<iframe class="manual-frame" src="${video.file_path}" allow="autoplay" allowfullscreen></iframe>`;
 
   const inManuals = video.manuals || [];
-  const manualsBar = inManuals.length ? `
+  const manualsBar = `
     <div class="manual-related-bar" style="flex:0 0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)">
-      <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">&#128196; In manuals</span>
-      ${inManuals.map(m => `
-        <button class="btn-secondary" style="font-size:13px;padding:6px 12px" onclick="go('manuals', ${m.id})">
-          ${esc(m.title)}
-        </button>`).join('')}
-    </div>` : '';
+      ${inManuals.length ? `
+        <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">&#128196; In manuals</span>
+        ${inManuals.map(m => `
+          <button class="btn-secondary" style="font-size:13px;padding:6px 12px" onclick="go('manuals', ${m.id})">
+            ${esc(m.title)}
+          </button>`).join('')}` : ''}
+      <button class="btn-secondary" style="font-size:13px;padding:6px 12px;margin-left:auto" onclick="copyVideoLink(${video.id})" title="Copy a link that opens this video in Aradia EDU — paste it into a manual">
+        &#128279; Copy link
+      </button>
+    </div>`;
 
   viewer.innerHTML = `
     <button class="manual-back-btn" onclick="closeVideo()" aria-label="Back to list">&larr;</button>
@@ -1167,6 +1171,38 @@ function selectVideo(id) {
   document.getElementById('page_videos').classList.add('viewing-manual');
   loadVideoNote(video.id);
   renderVideosList();
+}
+
+// Permanent link to a video: opens EDU, signs the person in, and jumps to the
+// video. This is what goes into manuals (Word → PDF) instead of the Bunny URL,
+// which is signed, expires, and bypasses login. Survives re-signing, key
+// rotation, and swapping the hosted file — but NOT deleting and re-adding the
+// video, since that mints a new id.
+function videoLink(id) {
+  return location.origin + location.pathname.replace(/[^/]*$/, '') + '?video=' + id;
+}
+
+async function copyVideoLink(id) {
+  const link = videoLink(id);
+  let ok = false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(link);
+      ok = true;
+    }
+  } catch (_) { /* fall through to the textarea method */ }
+  if (!ok) {
+    const ta = document.createElement('textarea');
+    ta.value = link;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+    ta.remove();
+  }
+  if (ok) toast('Link copied — paste it into the manual');
+  else window.prompt('Copy this link:', link);
 }
 
 function closeVideo() {
@@ -2190,6 +2226,7 @@ async function loadAdminVideos() {
         <div class="admin-module-meta">${esc(catNames(v).join(' · ') || 'No category')}</div>
       </div>
       <div class="admin-module-actions">
+        <button class="btn-secondary" onclick="copyVideoLink(${v.id})" title="Copy the EDU link for this video (use this in manuals, not the Bunny URL)">&#128279; Copy link</button>
         <button class="btn-secondary" onclick="editVideoModal(${v.id}, '${esc(v.title)}', '${esc(v.description || '')}', '${esc(v.category)}')">Edit</button>
         <button class="btn-danger" onclick="deleteVideo(${v.id})">Delete</button>
       </div>
