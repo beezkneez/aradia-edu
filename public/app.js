@@ -2227,7 +2227,7 @@ async function loadAdminVideos() {
         <div class="admin-module-meta">${esc(catNames(v).join(' · ') || 'No category')}</div>
       </div>
       <div class="admin-module-actions">
-        <button class="btn-secondary" onclick="copyVideoLink(${v.id})" title="Copy the EDU link for this video (use this in manuals, not the Bunny URL)">&#128279; Copy link</button>
+        <button class="btn-secondary" onclick="copyVideoLink(${v.id})" title="Copy the EDU link for this video — this is the link to use in manuals">&#128279; Copy link</button>
         <button class="btn-secondary" onclick="editVideoModal(${v.id}, '${esc(v.title)}', '${esc(v.description || '')}', '${esc(v.category)}')">Edit</button>
         <button class="btn-danger" onclick="deleteVideo(${v.id})">Delete</button>
       </div>
@@ -2244,7 +2244,7 @@ function uploadBunnyVideoModal() {
       <label class="form-label">Video file</label>
       <input class="form-input" type="file" id="bv_file" accept="video/*">
       <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
-        MP4, MOV or WebM. Uploads to your Bunny video library and encodes automatically.
+        MP4, MOV or WebM. Uploads to the Private Library and encodes automatically.
       </div>
     </div>
     <div class="form-group">
@@ -2306,7 +2306,7 @@ function saveBunnyVideo() {
     if (!e.lengthComputable) return;
     const p = Math.round((e.loaded / e.total) * 100);
     bar.style.width = p + '%';
-    pct.textContent = p >= 100 ? 'Processing on Bunny…' : `Uploading… ${p}%`;
+    pct.textContent = p >= 100 ? 'Processing in the Private Library…' : `Uploading… ${p}%`;
   };
   xhr.onload = async () => {
     let resp; try { resp = JSON.parse(xhr.responseText); } catch (_) { resp = null; }

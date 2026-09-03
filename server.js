@@ -180,13 +180,48 @@ async function maybeDeleteFromBunnyStorage(fp) {
 }
 
 // ─── Auth helper (shared with aradia-time DB) ───────────────────────────────
+
+// Every column shapeUser needs, including the three permission layers
+// aradia-time resolves on top of admin_permissions: the person's staff role,
+// their one-off grants, and their one-off denies. Selected in one place so the
+// login path, the SSO path and the Access tab cannot drift apart.
+const USER_SELECT = `
+  SELECT u.id, u.email, u.name, u.type, u.username, u.is_active, u.profile_pic,
+         u.preferred_theme, u.pin, u.is_superuser,
+         COALESCE(u.teaches, '') AS teaches,
+         COALESCE(u.admin_permissions, '{}') AS admin_permissions,
+         COALESCE(u.perm_grants_json, '') AS perm_grants_json,
+         COALESCE(u.perm_denies_json, '') AS perm_denies_json,
+         u.staff_role_id,
+         sr.name AS role_name,
+         COALESCE(sr.perms_json, '{}') AS role_perms
+    FROM users u
+    LEFT JOIN staff_roles sr ON sr.id = u.staff_role_id`;
+
+// Older/simpler schema (no roles yet): the same query without the join, so a
+// database that predates staff roles still logs people in.
+const USER_SELECT_LEGACY = `
+  SELECT u.id, u.email, u.name, u.type, u.username, u.is_active, u.profile_pic,
+         u.preferred_theme, u.pin, u.is_superuser,
+         COALESCE(u.teaches, '') AS teaches,
+         COALESCE(u.admin_permissions, '{}') AS admin_permissions
+    FROM users u`;
+
+async function queryUsers(where, params) {
+  try {
+    return await pool.query(USER_SELECT + ' ' + where, params);
+  } catch (e) {
+    // 42P01 undefined_table, 42703 undefined_column — the roles migration has
+    // not run on this database. Anything else is a real error.
+    if (e.code !== '42P01' && e.code !== '42703') throw e;
+    return pool.query(USER_SELECT_LEGACY + ' ' + where, params);
+  }
+}
+
 async function getAuthorizedUser(email, pin) {
   try {
-    const r = await pool.query(
-      `SELECT id, email, name, type, username, is_active, profile_pic, preferred_theme, pin,
-              is_superuser, COALESCE(teaches, '') as teaches,
-              COALESCE(admin_permissions, '{}') as admin_permissions
-       FROM users WHERE (LOWER(email)=LOWER($1) OR LOWER(username)=LOWER($1)) AND is_active=TRUE`,
+    const r = await queryUsers(
+      `WHERE (LOWER(u.email)=LOWER($1) OR LOWER(u.username)=LOWER($1)) AND u.is_active=TRUE`,
       [email]
     );
     if (r.rows.length === 0) return null;
@@ -223,18 +258,58 @@ async function getAuthorizedUser(email, pin) {
 
 // Same projection as getAuthorizedUser, without a credential check. Only call
 // after the caller's identity has already been proven (e.g. a valid SSO token).
+function safeJson(s, fallback) {
+  if (s == null || s === '') return fallback;
+  if (typeof s === 'object') return s;
+  try { return JSON.parse(s); } catch (e) { return fallback; }
+}
+
+// Same merge as aradia-time: read and write are independent bits, so
+// "r" + "w" = "rw" and neither side can lower what the other granted.
+function mergeLevel(a, b) {
+  const has = v => ({ r: v === 'r' || v === 'rw', w: v === 'w' || v === 'rw' });
+  const A = has(a || ''), B = has(b || '');
+  const r = A.r || B.r, w = A.w || B.w;
+  return r && w ? 'rw' : r ? 'r' : w ? 'w' : '';
+}
+
+// A person's permissions in aradia-time are not just their admin_permissions
+// column. They are: that column (held directly) + their staff role's bag +
+// their one-off grants − their one-off denies. Reading only the column — as
+// this app used to — misses anyone whose EDU access came from a role or from
+// the newer per-person override page. Mirrors applyStaffRole in aradia-time.
+function effectivePerms(u) {
+  const own    = safeJson(u.admin_permissions, {});
+  const role   = safeJson(u.role_perms, {});
+  const grants = safeJson(u.perm_grants_json, {}).perms || {};
+  const denies = safeJson(u.perm_denies_json, {}).perms || {};
+  const eff = Object.assign({}, own);
+  // key -> every layer that contributed it, in the order they were applied.
+  // A key held both directly and via the role is listed under both, so that
+  // removing one of them does not look like it removes the access.
+  const from = {};
+  const note = (k, label) => { (from[k] = from[k] || []).push(label); };
+  Object.keys(own).forEach(k => { if (own[k]) note(k, 'direct'); });
+  const layer = (src, label) => Object.keys(src || {}).forEach(k => {
+    const merged = mergeLevel(eff[k], src[k]);
+    if (!merged) return;
+    note(k, label);
+    eff[k] = merged;
+  });
+  layer(role, 'role');
+  layer(grants, 'grant');
+  Object.keys(denies).forEach(k => { delete eff[k]; from[k] = ['denied']; });
+  return { perms: eff, from };
+}
+
 function shapeUser(u) {
-  // admin_permissions is a JSON string (shared with aradia-time). It maps a
-  // feature key to an access level ("r" | "w" | "rw"). The "edu" key grants
-  // EDU-only moderator rights here WITHOUT making the person a full aradia-time
-  // moderator — set from aradia-time's Permissions page.
-  let perms = {};
-  try {
-    perms = typeof u.admin_permissions === 'string'
-      ? JSON.parse(u.admin_permissions || '{}')
-      : (u.admin_permissions || {});
-  } catch (e) { perms = {}; }
-  const isEduMod = !!perms.edu;
+  const { perms, from } = effectivePerms(u);
+  // The "edu" key is shared with aradia-time's portal, where read on it just
+  // shows the EDU section — every plain Staff-role member has that. Moderator
+  // rights here mean WRITE on it: the "Aradia EDU moderator" row on the
+  // Permissions page, ticked in the write column.
+  const eduLevel = String(perms.edu || '');
+  const isEduMod = eduLevel === 'w' || eduLevel === 'rw';
   return {
     id: u.id, email: u.email, name: u.name, type: u.type,
     username: u.username, profile_pic: u.profile_pic,
@@ -242,6 +317,9 @@ function shapeUser(u) {
     isAdmin: u.is_superuser === true || u.type === 'admin' || u.username === 'admin',
     isModerator: u.type === 'moderator' || isEduMod,
     isEduMod,
+    eduLevel,
+    eduFrom: from.edu || [],
+    roleName: u.role_name || '',
     teaches: u.teaches,
     admin_permissions: perms
   };
@@ -249,13 +327,7 @@ function shapeUser(u) {
 
 async function getUserByEmail(email) {
   try {
-    const r = await pool.query(
-      `SELECT id, email, name, type, username, is_active, profile_pic, preferred_theme, pin,
-              is_superuser, COALESCE(teaches, '') as teaches,
-              COALESCE(admin_permissions, '{}') as admin_permissions
-       FROM users WHERE LOWER(email)=LOWER($1) AND is_active=TRUE`,
-      [email]
-    );
+    const r = await queryUsers(`WHERE LOWER(u.email)=LOWER($1) AND u.is_active=TRUE`, [email]);
     if (r.rows.length === 0) return null;
     return shapeUser(r.rows[0]);
   } catch (e) { console.error('getUserByEmail error:', e); return null; }
@@ -1046,12 +1118,7 @@ app.post('/api/admin/getAccess', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
   if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
 
-  const r = await pool.query(
-    `SELECT id, email, name, type, username, profile_pic, preferred_theme,
-            is_superuser, COALESCE(teaches, '') as teaches,
-            COALESCE(admin_permissions, '{}') as admin_permissions
-     FROM users WHERE is_active=TRUE ORDER BY name`
-  );
+  const r = await queryUsers(`WHERE u.is_active=TRUE ORDER BY u.name`, []);
   const people = r.rows.map(shapeUser).filter(isAdminOrMod).map(u => {
     // Explain *why* they have access, in the order the rules are checked.
     let role, via;
@@ -1065,8 +1132,13 @@ app.post('/api/admin/getAccess', async (req, res) => {
       via = 'Account type: moderator';
     } else {
       role = 'edu';
-      const level = String(u.admin_permissions.edu || '');
-      via = 'EDU permission' + (level ? ' (' + level + ')' : '');
+      const label = {
+        direct: 'set on their Permissions page',
+        role: 'their staff role' + (u.roleName ? ' "' + u.roleName + '"' : ''),
+        grant: 'a one-off grant',
+      };
+      const how = (u.eduFrom || []).map(f => label[f]).filter(Boolean).join(' and ');
+      via = 'EDU moderator permission' + (how ? ', ' + how : '');
     }
     return { email: u.email, name: u.name, username: u.username, role, via };
   });
@@ -1097,7 +1169,7 @@ app.post('/api/admin/uploadManualBunny', bunnyUpload.single('file'), async (req,
   try {
     const user = await getAuthorizedUser(req.body.email, req.body.pin);
     if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
-    if (!bunnyStorageConfigured()) return res.json({ ok: false, reason: 'File hosting is not configured — set BUNNY_STORAGE_ZONE / _PASSWORD / _HOSTNAME.' });
+    if (!bunnyStorageConfigured()) return res.json({ ok: false, reason: 'Private Library file storage is not set up yet (BUNNY_STORAGE_ZONE / _PASSWORD / _HOSTNAME).' });
     if (!req.file) return res.json({ ok: false, reason: 'No file uploaded' });
     const ext = (path.extname(req.file.originalname) || '.pdf').toLowerCase();
     const remotePath = `manuals/${uuidv4()}${ext}`;
@@ -1420,7 +1492,7 @@ app.post('/api/admin/uploadVideoBunny', bunnyUpload.single('file'), async (req, 
   try {
     const user = await getAuthorizedUser(req.body.email, req.body.pin);
     if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
-    if (!bunnyConfigured()) return res.json({ ok: false, reason: 'Video hosting is not configured — set BUNNY_STREAM_LIBRARY_ID and BUNNY_STREAM_API_KEY.' });
+    if (!bunnyConfigured()) return res.json({ ok: false, reason: 'Private Library video hosting is not set up yet (BUNNY_STREAM_LIBRARY_ID / BUNNY_STREAM_API_KEY).' });
     if (!req.file) return res.json({ ok: false, reason: 'No file uploaded' });
 
     const title = String(req.body.title || req.file.originalname || 'Untitled').slice(0, 200);
@@ -1434,10 +1506,10 @@ app.post('/api/admin/uploadVideoBunny', bunnyUpload.single('file'), async (req, 
     if (!createResp.ok) {
       const t = await createResp.text().catch(() => '');
       console.error('Bunny create failed:', createResp.status, t);
-      return res.json({ ok: false, reason: `Bunny rejected the create (${createResp.status}). Check the Library ID and API key.` });
+      return res.json({ ok: false, reason: `The Private Library refused the upload (${createResp.status}). Check the library ID and API key.` });
     }
     const guid = (await createResp.json()).guid;
-    if (!guid) return res.json({ ok: false, reason: 'Bunny did not return a video id' });
+    if (!guid) return res.json({ ok: false, reason: 'The Private Library did not return a video id' });
 
     // 2) Upload the bytes.
     const bytes = fs.readFileSync(tmpPath);
@@ -1451,7 +1523,7 @@ app.post('/api/admin/uploadVideoBunny', bunnyUpload.single('file'), async (req, 
       console.error('Bunny upload failed:', putResp.status, t);
       // Roll back the empty video object we just created.
       await maybeDeleteFromBunny({ file_type: 'bunny_video', file_path: bunnyEmbedUrl(guid) });
-      return res.json({ ok: false, reason: `Bunny upload failed (${putResp.status})` });
+      return res.json({ ok: false, reason: `Private Library upload failed (${putResp.status})` });
     }
 
     res.json({ ok: true, guid, file_path: bunnyEmbedUrl(guid), file_type: 'bunny_video' });
@@ -1721,7 +1793,7 @@ app.post('/api/admin/uploadCategoryImage', bunnyUpload.single('file'), async (re
   try {
     const user = await getAuthorizedUser(req.body.email, req.body.pin);
     if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
-    if (!bunnyStorageConfigured()) return res.json({ ok: false, reason: 'File hosting is not configured — set BUNNY_STORAGE_*.' });
+    if (!bunnyStorageConfigured()) return res.json({ ok: false, reason: 'Private Library file storage is not set up yet (BUNNY_STORAGE_*).' });
     if (!req.file) return res.json({ ok: false, reason: 'No file uploaded' });
     const id = parseInt(req.body.category_id, 10);
     if (!id) return res.json({ ok: false, reason: 'Missing category' });
