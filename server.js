@@ -1038,6 +1038,41 @@ app.post('/api/admin/getStaff', async (req, res) => {
   res.json({ ok: true, staff: r.rows });
 });
 
+// ─── Admin: Who has admin access ────────────────────────────────────────────
+// Read-only. Access is not managed here — it comes from the shared users table
+// (aradia-time's Permissions page). This just shows the result of those rules
+// so an admin can see who can get in without reading the database.
+app.post('/api/admin/getAccess', async (req, res) => {
+  const user = await getAuthorizedUser(req.body.email, req.body.pin);
+  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+
+  const r = await pool.query(
+    `SELECT id, email, name, type, username, profile_pic, preferred_theme,
+            is_superuser, COALESCE(teaches, '') as teaches,
+            COALESCE(admin_permissions, '{}') as admin_permissions
+     FROM users WHERE is_active=TRUE ORDER BY name`
+  );
+  const people = r.rows.map(shapeUser).filter(isAdminOrMod).map(u => {
+    // Explain *why* they have access, in the order the rules are checked.
+    let role, via;
+    if (u.isAdmin) {
+      role = 'admin';
+      via = u.username === 'admin' ? 'The "admin" account'
+          : u.type === 'admin' ? 'Account type: admin'
+          : 'Superuser';
+    } else if (u.type === 'moderator') {
+      role = 'moderator';
+      via = 'Account type: moderator';
+    } else {
+      role = 'edu';
+      const level = String(u.admin_permissions.edu || '');
+      via = 'EDU permission' + (level ? ' (' + level + ')' : '');
+    }
+    return { email: u.email, name: u.name, username: u.username, role, via };
+  });
+  res.json({ ok: true, people });
+});
+
 // ─── Admin: File upload ─────────────────────────────────────────────────────
 app.post('/api/admin/upload/:type', upload.single('file'), async (req, res) => {
   try {

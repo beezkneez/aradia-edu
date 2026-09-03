@@ -935,6 +935,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
   color: var(--text2, var(--text)); font-size: 13px; line-height: 1.5;
 }
 .admin-note strong { color: var(--text); }
+.inline-badge {
+  display: inline-block; padding: 4px 10px; border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  white-space: nowrap;
+}
 .toggle-label { font-size: 14px; color: var(--text); }
 
 /* Module Editor */

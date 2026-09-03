@@ -1404,6 +1404,7 @@ function switchAdminTab(tab) {
   if (tab === 'manuals') loadAdminManuals();
   if (tab === 'videos') loadAdminVideos();
   if (tab === 'categories') loadAdminCategories();
+  if (tab === 'access') loadAdminAccess();
 }
 
 async function loadAdminData() {
@@ -2557,6 +2558,34 @@ function confirmDeleteVideo(id) {
 async function performDeleteVideo(id) {
   const r = await api('admin/deleteVideo', { video_id: id });
   if (r.ok) { toast('Video deleted', 'success'); loadAdminVideos(); }
+}
+
+/* ── Access list (Admin → Access), read-only ── */
+const ACCESS_LABEL = { admin: 'Full admin', moderator: 'Moderator', edu: 'EDU admin' };
+const ACCESS_BADGE = { admin: 'badge-overdue', moderator: 'badge-due', edu: 'badge-complete' };
+
+async function loadAdminAccess() {
+  const wrap = document.getElementById('access_table_wrap');
+  wrap.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
+  const r = await api('admin/getAccess');
+  if (!r.ok) { wrap.innerHTML = `<div class="empty-state"><p>${esc(r.reason || 'Could not load')}</p></div>`; return; }
+  if (!r.people.length) { wrap.innerHTML = '<div class="empty-state"><p>Nobody has admin access</p></div>'; return; }
+
+  wrap.innerHTML = `
+    <table class="progress-table">
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Access</th><th>Granted by</th></tr>
+      </thead>
+      <tbody>
+        ${r.people.map(p => `
+          <tr>
+            <td>${esc(p.name || p.username || '')}${p.email && p.email.toLowerCase() === (STATE.email || '').toLowerCase() ? ' <span style="color:var(--text3);font-size:12px">(you)</span>' : ''}</td>
+            <td style="color:var(--text3)">${esc(p.email || '')}</td>
+            <td><span class="inline-badge ${ACCESS_BADGE[p.role] || ''}">${esc(ACCESS_LABEL[p.role] || p.role)}</span></td>
+            <td style="color:var(--text3)">${esc(p.via)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
 }
 
 /* ── Category manager (Admin → Categories) ── */

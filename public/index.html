@@ -208,6 +208,7 @@
         <button class="admin-tab-btn" data-tab="categories" onclick="switchAdminTab('categories')">Categories</button>
         <button class="admin-tab-btn" data-tab="progress" onclick="switchAdminTab('progress')">Staff Progress</button>
         <button class="admin-tab-btn" data-tab="assignments" onclick="switchAdminTab('assignments')">Assignments</button>
+        <button class="admin-tab-btn" data-tab="access" onclick="switchAdminTab('access')">Access</button>
       </div>
       <div class="admin-content">
 
@@ -321,6 +322,20 @@
             <select class="form-input" id="assign_module_select" onchange="loadAssignments()" style="max-width:400px"></select>
           </div>
           <div id="assignments_list"></div>
+        </div>
+
+        <!-- Access Panel (read-only) -->
+        <div id="admin_access" class="admin-panel">
+          <div class="admin-section-header">
+            <h3>Who Has Admin Access</h3>
+          </div>
+          <div class="admin-note" style="margin:0 0 16px">
+            Everyone listed here can open this Admin area. Access is <strong>managed in aradia-time</strong>,
+            not here: full admins and moderators come from the account type set in aradia-time, and the
+            <strong>EDU</strong> permission on aradia-time's Permissions page grants EDU-only admin rights
+            without making someone a full moderator.
+          </div>
+          <div id="access_table_wrap"></div>
         </div>
 
       </div>
