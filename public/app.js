@@ -196,6 +196,10 @@ function enterApp() {
   if (STATE.user.isAdmin || STATE.user.isModerator) {
     document.getElementById('nav_admin').style.display = '';
   }
+  // The Access tab (who has admin rights) is for full admins only; the server
+  // enforces the same on /api/admin/getAccess.
+  const accessTab = document.getElementById('admin_tab_access');
+  if (accessTab) accessTab.style.display = STATE.user.isAdmin ? '' : 'none';
 
   // Follow the user's aradia-time theme preference on every login (it is the
   // source of truth). The in-app toggle is a session-only override that resets

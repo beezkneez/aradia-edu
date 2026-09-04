@@ -1116,7 +1116,9 @@ app.post('/api/admin/getStaff', async (req, res) => {
 // so an admin can see who can get in without reading the database.
 app.post('/api/admin/getAccess', async (req, res) => {
   const user = await getAuthorizedUser(req.body.email, req.body.pin);
-  if (!isAdminOrMod(user)) return res.json({ ok: false, reason: 'Admin only' });
+  // Full admins only — not EDU moderators. isAdminOrMod is the gate for the
+  // rest of the admin area; this one is deliberately tighter.
+  if (!user || !user.isAdmin) return res.json({ ok: false, reason: 'Full admin only' });
 
   const r = await queryUsers(`WHERE u.is_active=TRUE ORDER BY u.name`, []);
   const people = r.rows.map(shapeUser).filter(isAdminOrMod).map(u => {
