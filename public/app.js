@@ -1880,84 +1880,52 @@ async function loadAdminManuals() {
     </div>`).join('');
 }
 
-async function uploadManual(input) {
-  if (!input.files[0]) return;
-  const file = input.files[0];
-  const ext = file.name.split('.').pop().toLowerCase();
+/* ═══════════════════════════════════════════════════════════════════════════
+   MANUAL + VIDEO FORMS — one form each, shared by Add and Edit
+   The add flows used to ask for a single typed category and nothing else; the
+   edit screens had the category toggles and the attach picker. Now both use
+   the same form, so an admin picks categories and attaches videos/manuals in
+   the same screen they upload from.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-  // Upload straight to Bunny Storage (durable CDN) instead of local disk.
-  toast('Uploading…', 'info');
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('email', STATE.email);
-  fd.append('pin', STATE.pin);
-  const r = await (await fetch('/api/admin/uploadManualBunny', { method: 'POST', body: fd })).json();
-  if (!r.ok) return toast(r.reason || 'Upload failed', 'error');
-
-  const defaultTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-
-  showModal(`
-    <h3>Manual Details</h3>
-    <div class="form-group">
-      <label class="form-label">Title</label>
-      <input class="form-input" id="manual_title" value="${esc(defaultTitle)}">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Category</label>
-      <input class="form-input" id="manual_category" value="General" placeholder="e.g., Pole, Aerial, Flexibility">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description (optional)</label>
-      <textarea class="form-input" id="manual_description" placeholder="Brief description..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveManualDetails('${r.filePath}', '${ext}')">Save Manual</button>
-    </div>
-  `);
+// The attach pickers list the other side's admin list; load it once.
+async function ensureAdminVideos() {
+  if (STATE.adminVideos && STATE.adminVideos.length) return STATE.adminVideos;
+  const r = await api('getVideos');
+  STATE.adminVideos = r.ok ? r.videos : [];
+  return STATE.adminVideos;
+}
+async function ensureAdminManuals() {
+  if (STATE.adminManuals && STATE.adminManuals.length) return STATE.adminManuals;
+  const r = await api('getManuals');
+  STATE.adminManuals = r.ok ? r.manuals : [];
+  return STATE.adminManuals;
 }
 
-async function saveManualDetails(filePath, fileType) {
-  const r = await api('admin/createManual', {
-    title: document.getElementById('manual_title').value.trim(),
-    description: document.getElementById('manual_description').value.trim(),
-    category: document.getElementById('manual_category').value.trim() || 'General',
-    file_path: filePath,
-    file_type: fileType === 'pdf' ? 'pdf' : 'doc'
-  });
-  if (r.ok) { hideModal(); toast('Manual uploaded!', 'success'); loadAdminManuals(); }
-}
+const PICKER_BOX = 'max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px';
 
-async function editManualModal(id, title, desc, category) {
-  const manual = (STATE.adminManuals || []).find(m => m.id === id);
-  const selVideoIds = manual ? (manual.video_ids || []) : [];
-  // Need the full videos list to build the picker; reuse the cached admin list,
-  // otherwise fetch it.
-  let videos = STATE.adminVideos;
-  if (!videos || !videos.length) {
-    const vr = await api('getVideos');
-    videos = vr.ok ? vr.videos : [];
-    STATE.adminVideos = videos;
-  }
+// ── Manual form ──────────────────────────────────────────────────────────────
+// Same element ids in Add and Edit so autoSelectManualVideos(), mvBulkSelect()
+// and readManualForm() work in both.
+function manualFormHtml(title, desc, videos, selVideoIds) {
   const vidCats = [...new Set(videos.flatMap(catNames))].sort();
-  showModal(`
-    <h3>Edit Manual</h3>
+  return `
     <div class="form-group">
       <label class="form-label">Title</label>
-      <input class="form-input" id="edit_manual_title" value="${title}">
+      <input class="form-input" id="edit_manual_title" value="${esc(title || '')}" placeholder="e.g. Pole 3 Manual">
     </div>
     <div class="form-group">
       <label class="form-label">Categories</label>
-      <div id="edit_manual_cats" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px"><div style="padding:8px;color:var(--text3);font-size:13px">Loading…</div></div>
+      <div id="edit_manual_cats" style="${PICKER_BOX}"><div style="padding:8px;color:var(--text3);font-size:13px">Loading…</div></div>
       <button type="button" class="btn-secondary" style="margin-top:6px;font-size:13px" onclick="addChecklistCategory('edit_manual_cats','manual')">+ New category</button>
     </div>
     <div class="form-group">
-      <label class="form-label">Description</label>
-      <textarea class="form-input" id="edit_manual_desc">${desc}</textarea>
+      <label class="form-label">Description (optional)</label>
+      <textarea class="form-input" id="edit_manual_desc" placeholder="Brief description...">${esc(desc || '')}</textarea>
     </div>
     <div class="form-group">
       <label class="form-label">Attached Videos</label>
-      ${/pole\s*[1-5]/i.test(title) ? `
+      ${/pole\s*[1-5]/i.test(title || '') ? `
       <button type="button" class="btn-primary" style="width:100%;margin-bottom:8px" onclick="autoSelectManualVideos()">
         &#10024; Auto-select videos taught in this manual
       </button>` : ''}
@@ -1969,19 +1937,325 @@ async function editManualModal(id, title, desc, category) {
         <button type="button" class="btn-secondary" style="padding:8px 12px;white-space:nowrap" onclick="mvBulkSelect(true)">Select all</button>
         <button type="button" class="btn-secondary" style="padding:8px 12px;white-space:nowrap" onclick="mvBulkSelect(false)">Clear</button>
       </div>
-      <div id="manual_videos_picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px">
+      <div id="manual_videos_picker" style="${PICKER_BOX};max-height:220px">
         ${renderLinkPicker(videos, selVideoIds, 'mv-check', 'No videos yet — add one first.')}
       </div>
       <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
         Pick a category and hit "Select all" to attach every video in it, then Save.
       </div>
+    </div>`;
+}
+
+function readManualForm() {
+  return {
+    title: document.getElementById('edit_manual_title').value.trim(),
+    description: document.getElementById('edit_manual_desc').value.trim(),
+    categoryIds: checklistCheckedIds('edit_manual_cats'),
+    categoryNames: checklistCheckedNames('edit_manual_cats'),
+    videoIds: Array.from(document.querySelectorAll('#manual_videos_picker input.mv-check:checked'))
+      .map(c => parseInt(c.value, 10)),
+  };
+}
+
+// Where a new manual's file comes from, held between opening the form and
+// pressing Save. { source: 'upload', file_path, file_type } or { source: 'drive' }.
+let PENDING_MANUAL = null;
+
+// Upload a file to the Private Library, then open the manual form for it.
+async function uploadManual(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  toast('Uploading…', 'info');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('email', STATE.email);
+  fd.append('pin', STATE.pin);
+  const r = await (await fetch('/api/admin/uploadManualBunny', { method: 'POST', body: fd })).json();
+  if (!r.ok) return toast(r.reason || 'Upload failed', 'error');
+
+  const defaultTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+  PENDING_MANUAL = { source: 'upload', file_path: r.filePath, file_type: ext === 'pdf' ? 'pdf' : 'doc' };
+  const videos = await ensureAdminVideos();
+  showModal(`
+    <h3>New Manual</h3>
+    ${manualFormHtml(defaultTitle, '', videos, [])}
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveNewManual()">Save Manual</button>
     </div>
+  `);
+  populateCategoryChecklist('edit_manual_cats', 'manual', []);
+}
+
+async function addDriveManualModal() {
+  PENDING_MANUAL = { source: 'drive', file_type: 'pdf' };
+  const videos = await ensureAdminVideos();
+  showModal(`
+    <h3>Add Manual from Google Drive</h3>
+    <div class="form-group">
+      <label class="form-label">Google Drive link</label>
+      <input class="form-input" id="drive_url" placeholder="https://drive.google.com/file/d/.../view">
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        PDF must be shared as "Anyone with the link can view"
+      </div>
+    </div>
+    ${manualFormHtml('', '', videos, [])}
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveNewManual()">Save Manual</button>
+    </div>
+  `);
+  populateCategoryChecklist('edit_manual_cats', 'manual', []);
+}
+
+async function saveNewManual() {
+  const f = readManualForm();
+  if (!f.title) return toast('Please enter a title', 'error');
+  const pending = PENDING_MANUAL || {};
+  let file_path = pending.file_path;
+  if (pending.source === 'drive') {
+    const fileId = extractDriveFileId(document.getElementById('drive_url').value);
+    if (!fileId) return toast('That doesn\'t look like a Google Drive link', 'error');
+    file_path = `https://drive.google.com/file/d/${fileId}/preview`;
+  }
+  if (!file_path) return toast('No file to save — upload or paste a link first', 'error');
+
+  const r = await api('admin/createManual', {
+    title: f.title, description: f.description,
+    category: f.categoryNames[0] || 'General',
+    file_path, file_type: pending.file_type || 'pdf'
+  });
+  if (!r.ok) return toast(r.reason || 'Failed to save manual', 'error');
+  await saveManualLinks(r.manual.id, f);
+  PENDING_MANUAL = null;
+  hideModal(); toast(pending.source === 'drive' ? 'Manual added from Drive' : 'Manual uploaded!', 'success');
+  loadAdminManuals();
+}
+
+// Categories + attached videos for a manual. On create, an empty list is
+// skipped so the single text category set above stands; on edit both are
+// always written so clearing every toggle actually clears.
+async function saveManualLinks(id, f, always) {
+  if (always || f.categoryIds.length) await api('admin/setManualCategories', { manual_id: id, category_ids: f.categoryIds });
+  if (always || f.videoIds.length) await api('admin/setManualVideos', { manual_id: id, video_ids: f.videoIds });
+}
+
+async function editManualModal(id, title, desc, category) {
+  const manual = (STATE.adminManuals || []).find(m => m.id === id);
+  if (manual) { title = manual.title; desc = manual.description || ''; }
+  const videos = await ensureAdminVideos();
+  showModal(`
+    <h3>Edit Manual</h3>
+    ${manualFormHtml(title, desc, videos, manual ? (manual.video_ids || []) : [])}
     <div class="modal-actions">
       <button class="btn-secondary" onclick="hideModal()">Cancel</button>
       <button class="btn-primary" onclick="updateManual(${id})">Save</button>
     </div>
   `);
   populateCategoryChecklist('edit_manual_cats', 'manual', manual ? catNames(manual) : (category ? [category] : []));
+}
+
+async function updateManual(id) {
+  const f = readManualForm();
+  if (!f.title) return toast('Please enter a title', 'error');
+  await api('admin/updateManual', { manual_id: id, title: f.title, description: f.description });
+  await saveManualLinks(id, f, true);
+  hideModal(); toast('Manual updated', 'success'); loadAdminManuals();
+}
+
+// ── Video form ───────────────────────────────────────────────────────────────
+function videoFormHtml(title, desc, manuals, selManualIds) {
+  return `
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="edit_video_title" value="${esc(title || '')}" placeholder="e.g. Aerial Hoop Beat Drop">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Categories</label>
+      <div id="edit_video_cats" style="${PICKER_BOX}"><div style="padding:8px;color:var(--text3);font-size:13px">Loading…</div></div>
+      <button type="button" class="btn-secondary" style="margin-top:6px;font-size:13px" onclick="addChecklistCategory('edit_video_cats','video')">+ New category</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea class="form-input" id="edit_video_desc" placeholder="Brief description...">${esc(desc || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Attach to Manuals</label>
+      <div id="video_manuals_picker" style="${PICKER_BOX};max-height:220px">
+        ${renderLinkPicker(manuals, selManualIds, 'vm-check', 'No manuals yet — upload one first.')}
+      </div>
+    </div>`;
+}
+
+function readVideoForm() {
+  return {
+    title: document.getElementById('edit_video_title').value.trim(),
+    description: document.getElementById('edit_video_desc').value.trim(),
+    categoryIds: checklistCheckedIds('edit_video_cats'),
+    categoryNames: checklistCheckedNames('edit_video_cats'),
+    manualIds: Array.from(document.querySelectorAll('#video_manuals_picker input.vm-check:checked'))
+      .map(c => parseInt(c.value, 10)),
+  };
+}
+
+async function saveVideoLinks(id, f, always) {
+  if (always || f.categoryIds.length) await api('admin/setVideoCategories', { video_id: id, category_ids: f.categoryIds });
+  if (always || f.manualIds.length) await api('admin/setVideoManuals', { video_id: id, manual_ids: f.manualIds });
+}
+
+// Upload a video file straight to the Private Library (primary path). Shows an
+// upload progress bar; on success it creates the edu_videos row with the
+// embed URL as file_path, so every iframe player just works.
+async function uploadBunnyVideoModal() {
+  const manuals = await ensureAdminManuals();
+  showModal(`
+    <h3>Upload a Video</h3>
+    <div class="form-group">
+      <label class="form-label">Video file</label>
+      <input class="form-input" type="file" id="bv_file" accept="video/*" onchange="bvDefaultTitle(this)">
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        MP4, MOV or WebM. Uploads to the Private Library and encodes automatically.
+      </div>
+    </div>
+    ${videoFormHtml('', '', manuals, [])}
+    <div id="bv_progress" style="display:none;margin-bottom:12px">
+      <div style="height:8px;background:var(--accent-bg2,#333);border-radius:4px;overflow:hidden">
+        <div id="bv_bar" style="height:100%;width:0;background:var(--accent,#d13a56);transition:width .2s"></div>
+      </div>
+      <div id="bv_pct" style="font-size:12px;color:var(--text3);margin-top:6px">Uploading… 0%</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" id="bv_save" onclick="saveBunnyVideo()">Upload</button>
+    </div>
+  `);
+  populateCategoryChecklist('edit_video_cats', 'video', []);
+}
+
+// Prefill the title from the chosen file name if the admin hasn't typed one.
+function bvDefaultTitle(input) {
+  const t = document.getElementById('edit_video_title');
+  const f = input.files && input.files[0];
+  if (t && f && !t.value.trim()) t.value = f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+}
+
+function saveBunnyVideo() {
+  const fileEl = document.getElementById('bv_file');
+  const file = fileEl && fileEl.files[0];
+  const f = readVideoForm();
+
+  if (!file) return toast('Please choose a video file', 'error');
+  if (!f.title) return toast('Please enter a title', 'error');
+
+  const saveBtn = document.getElementById('bv_save');
+  const prog = document.getElementById('bv_progress');
+  const bar = document.getElementById('bv_bar');
+  const pct = document.getElementById('bv_pct');
+  saveBtn.disabled = true; saveBtn.textContent = 'Uploading…';
+  prog.style.display = '';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('email', STATE.email);
+  fd.append('pin', STATE.pin);
+  fd.append('title', f.title);
+
+  // XHR (not fetch) so we can show real upload progress for large files.
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/admin/uploadVideoBunny');
+  xhr.upload.onprogress = (e) => {
+    if (!e.lengthComputable) return;
+    const p = Math.round((e.loaded / e.total) * 100);
+    bar.style.width = p + '%';
+    pct.textContent = p >= 100 ? 'Processing in the Private Library…' : `Uploading… ${p}%`;
+  };
+  xhr.onload = async () => {
+    let resp; try { resp = JSON.parse(xhr.responseText); } catch (_) { resp = null; }
+    if (!resp || !resp.ok) {
+      saveBtn.disabled = false; saveBtn.textContent = 'Upload';
+      prog.style.display = 'none';
+      return toast((resp && resp.reason) || 'Upload failed', 'error');
+    }
+    const r = await api('admin/createVideo', {
+      title: f.title, description: f.description,
+      category: f.categoryNames[0] || 'General',
+      file_path: resp.file_path, file_type: resp.file_type || 'bunny_video'
+    });
+    if (r.ok) {
+      await saveVideoLinks(r.video.id, f);
+      hideModal(); toast('Video uploaded', 'success'); loadAdminVideos();
+    } else {
+      saveBtn.disabled = false; saveBtn.textContent = 'Upload';
+      toast(r.reason || 'Failed to save video', 'error');
+    }
+  };
+  xhr.onerror = () => {
+    saveBtn.disabled = false; saveBtn.textContent = 'Upload';
+    prog.style.display = 'none';
+    toast('Network error during upload', 'error');
+  };
+  xhr.send(fd);
+}
+
+async function addDriveVideoModal() {
+  const manuals = await ensureAdminManuals();
+  showModal(`
+    <h3>Add Video from Google Drive</h3>
+    <div class="form-group">
+      <label class="form-label">Google Drive link</label>
+      <input class="form-input" id="dv_url" placeholder="https://drive.google.com/file/d/.../view">
+      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
+        Video must be shared as "Anyone with the link can view"
+      </div>
+    </div>
+    ${videoFormHtml('', '', manuals, [])}
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveDriveVideo()">Save</button>
+    </div>
+  `);
+  populateCategoryChecklist('edit_video_cats', 'video', []);
+}
+
+async function saveDriveVideo() {
+  const f = readVideoForm();
+  const fileId = extractDriveFileId(document.getElementById('dv_url').value);
+  if (!fileId) return toast('That doesn\'t look like a Google Drive link', 'error');
+  if (!f.title) return toast('Please enter a title', 'error');
+
+  const r = await api('admin/createVideo', {
+    title: f.title, description: f.description,
+    category: f.categoryNames[0] || 'General',
+    file_path: `https://drive.google.com/file/d/${fileId}/preview`, file_type: 'drive_video'
+  });
+  if (!r.ok) return toast(r.reason || 'Failed to add video', 'error');
+  await saveVideoLinks(r.video.id, f);
+  hideModal(); toast('Video added from Drive', 'success'); loadAdminVideos();
+}
+
+async function editVideoModal(id, title, desc, category) {
+  const video = (STATE.adminVideos || []).find(v => v.id === id);
+  if (video) { title = video.title; desc = video.description || ''; }
+  const manuals = await ensureAdminManuals();
+  showModal(`
+    <h3>Edit Video</h3>
+    ${videoFormHtml(title, desc, manuals, video ? (video.manual_ids || []) : [])}
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="updateVideo(${id})">Save</button>
+    </div>
+  `);
+  populateCategoryChecklist('edit_video_cats', 'video', video ? catNames(video) : (category ? [category] : []));
+}
+
+async function updateVideo(id) {
+  const f = readVideoForm();
+  if (!f.title) return toast('Please enter a title', 'error');
+  await api('admin/updateVideo', { video_id: id, title: f.title, description: f.description });
+  await saveVideoLinks(id, f, true);
+  hideModal(); toast('Video updated', 'success'); loadAdminVideos();
 }
 
 // The videos each POLE manual (levels 1-5) teaches, extracted from the manual
@@ -2046,21 +2320,6 @@ function mvBulkSelect(check) {
     if (cat === '__ALL__' || cats.includes(cat)) { b.checked = check; n++; }
   });
   toast(`${check ? 'Selected' : 'Cleared'} ${n} video${n === 1 ? '' : 's'} — hit Save to apply`, 'success');
-}
-
-async function updateManual(id) {
-  const categoryIds = checklistCheckedIds('edit_manual_cats');
-  const videoIds = Array.from(
-    document.querySelectorAll('#manual_videos_picker input.mv-check:checked')
-  ).map(c => parseInt(c.value, 10));
-  await api('admin/updateManual', {
-    manual_id: id,
-    title: document.getElementById('edit_manual_title').value.trim(),
-    description: document.getElementById('edit_manual_desc').value.trim()
-  });
-  await api('admin/setManualCategories', { manual_id: id, category_ids: categoryIds });
-  await api('admin/setManualVideos', { manual_id: id, video_ids: videoIds });
-  hideModal(); toast('Manual updated', 'success'); loadAdminManuals();
 }
 
 async function deleteManual(id) {
@@ -2156,62 +2415,6 @@ async function handleCategoryChange(selectEl, surface) {
   toast(r.existed ? 'Category already existed' : 'Category added', 'success');
 }
 
-function addDriveManualModal() {
-  showModal(`
-    <h3>Add Manual from Google Drive</h3>
-    <div class="form-group">
-      <label class="form-label">Google Drive link</label>
-      <input class="form-input" id="drive_url" placeholder="https://drive.google.com/file/d/.../view">
-      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
-        PDF must be shared as "Anyone with the link can view"
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Title</label>
-      <input class="form-input" id="drive_title" placeholder="e.g. Pole 101 Manual">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Category</label>
-      <select class="form-input" id="drive_category" onchange="handleCategoryChange(this, 'manual')">
-        <option>Loading categories…</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description (optional)</label>
-      <textarea class="form-input" id="drive_description" placeholder="Brief description..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveDriveManual()">Save</button>
-    </div>
-  `);
-  populateCategorySelect('drive_category', 'manual');
-}
-
-async function saveDriveManual() {
-  const url = document.getElementById('drive_url').value;
-  const title = document.getElementById('drive_title').value.trim();
-  const catSel = document.getElementById('drive_category').value;
-  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : 'General';
-  const description = document.getElementById('drive_description').value.trim();
-
-  const fileId = extractDriveFileId(url);
-  if (!fileId) return toast('That doesn\'t look like a Google Drive link', 'error');
-  if (!title) return toast('Please enter a title', 'error');
-
-  const file_path = `https://drive.google.com/file/d/${fileId}/preview`;
-  const r = await api('admin/createManual', {
-    title, description, category, file_path, file_type: 'pdf'
-  });
-  if (r.ok) {
-    hideModal();
-    toast('Manual added from Drive', 'success');
-    loadAdminManuals();
-  } else {
-    toast(r.reason || 'Failed to add manual', 'error');
-  }
-}
-
 /* ─── Admin: Videos ─── */
 async function loadAdminVideos() {
   const r = await api('getVideos');
@@ -2236,161 +2439,6 @@ async function loadAdminVideos() {
         <button class="btn-danger" onclick="deleteVideo(${v.id})">Delete</button>
       </div>
     </div>`).join('');
-}
-
-// Upload a video file straight to Bunny Stream (primary path). Shows an upload
-// progress bar; on success it creates the edu_videos row via createVideo with
-// the Bunny embed URL as file_path, so every iframe player just works.
-function uploadBunnyVideoModal() {
-  showModal(`
-    <h3>Upload a Video</h3>
-    <div class="form-group">
-      <label class="form-label">Video file</label>
-      <input class="form-input" type="file" id="bv_file" accept="video/*">
-      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
-        MP4, MOV or WebM. Uploads to the Private Library and encodes automatically.
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Title</label>
-      <input class="form-input" id="bv_title" placeholder="e.g. Aerial Hoop Beat Drop">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Category</label>
-      <select class="form-input" id="bv_category" onchange="handleCategoryChange(this, 'video')">
-        <option>Loading categories…</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description (optional)</label>
-      <textarea class="form-input" id="bv_description" placeholder="Brief description..."></textarea>
-    </div>
-    <div id="bv_progress" style="display:none;margin-bottom:12px">
-      <div style="height:8px;background:var(--accent-bg2,#333);border-radius:4px;overflow:hidden">
-        <div id="bv_bar" style="height:100%;width:0;background:var(--accent,#d13a56);transition:width .2s"></div>
-      </div>
-      <div id="bv_pct" style="font-size:12px;color:var(--text3);margin-top:6px">Uploading… 0%</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" id="bv_save" onclick="saveBunnyVideo()">Upload</button>
-    </div>
-  `);
-  populateCategorySelect('bv_category', 'video');
-}
-
-function saveBunnyVideo() {
-  const fileEl = document.getElementById('bv_file');
-  const file = fileEl && fileEl.files[0];
-  const title = document.getElementById('bv_title').value.trim();
-  const catSel = document.getElementById('bv_category').value;
-  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : 'General';
-  const description = document.getElementById('bv_description').value.trim();
-
-  if (!file) return toast('Please choose a video file', 'error');
-  if (!title) return toast('Please enter a title', 'error');
-
-  const saveBtn = document.getElementById('bv_save');
-  const prog = document.getElementById('bv_progress');
-  const bar = document.getElementById('bv_bar');
-  const pct = document.getElementById('bv_pct');
-  saveBtn.disabled = true; saveBtn.textContent = 'Uploading…';
-  prog.style.display = 'block';
-
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('email', STATE.email);
-  fd.append('pin', STATE.pin);
-  fd.append('title', title);
-
-  // XHR (not fetch) so we can show real upload progress for large files.
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/api/admin/uploadVideoBunny');
-  xhr.upload.onprogress = (e) => {
-    if (!e.lengthComputable) return;
-    const p = Math.round((e.loaded / e.total) * 100);
-    bar.style.width = p + '%';
-    pct.textContent = p >= 100 ? 'Processing in the Private Library…' : `Uploading… ${p}%`;
-  };
-  xhr.onload = async () => {
-    let resp; try { resp = JSON.parse(xhr.responseText); } catch (_) { resp = null; }
-    if (!resp || !resp.ok) {
-      saveBtn.disabled = false; saveBtn.textContent = 'Upload';
-      prog.style.display = 'none';
-      return toast((resp && resp.reason) || 'Upload failed', 'error');
-    }
-    const r = await api('admin/createVideo', {
-      title, description, category,
-      file_path: resp.file_path, file_type: resp.file_type || 'bunny_video'
-    });
-    if (r.ok) { hideModal(); toast('Video uploaded', 'success'); loadAdminVideos(); }
-    else {
-      saveBtn.disabled = false; saveBtn.textContent = 'Upload';
-      toast(r.reason || 'Failed to save video', 'error');
-    }
-  };
-  xhr.onerror = () => {
-    saveBtn.disabled = false; saveBtn.textContent = 'Upload';
-    prog.style.display = 'none';
-    toast('Network error during upload', 'error');
-  };
-  xhr.send(fd);
-}
-
-function addDriveVideoModal() {
-  showModal(`
-    <h3>Add Video from Google Drive</h3>
-    <div class="form-group">
-      <label class="form-label">Google Drive link</label>
-      <input class="form-input" id="dv_url" placeholder="https://drive.google.com/file/d/.../view">
-      <div class="upload-hint" style="margin-top:6px;color:var(--text3);font-size:12px">
-        Video must be shared as "Anyone with the link can view"
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Title</label>
-      <input class="form-input" id="dv_title" placeholder="e.g. Aerial Hoop Beat Drop">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Category</label>
-      <select class="form-input" id="dv_category" onchange="handleCategoryChange(this, 'video')">
-        <option>Loading categories…</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description (optional)</label>
-      <textarea class="form-input" id="dv_description" placeholder="Brief description..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveDriveVideo()">Save</button>
-    </div>
-  `);
-  populateCategorySelect('dv_category', 'video');
-}
-
-async function saveDriveVideo() {
-  const url = document.getElementById('dv_url').value;
-  const title = document.getElementById('dv_title').value.trim();
-  const catSel = document.getElementById('dv_category').value;
-  const category = (catSel && catSel !== '__ADD_NEW__') ? catSel : 'General';
-  const description = document.getElementById('dv_description').value.trim();
-
-  const fileId = extractDriveFileId(url);
-  if (!fileId) return toast('That doesn\'t look like a Google Drive link', 'error');
-  if (!title) return toast('Please enter a title', 'error');
-
-  const file_path = `https://drive.google.com/file/d/${fileId}/preview`;
-  const r = await api('admin/createVideo', {
-    title, description, category, file_path, file_type: 'drive_video'
-  });
-  if (r.ok) {
-    hideModal();
-    toast('Video added from Drive', 'success');
-    loadAdminVideos();
-  } else {
-    toast(r.reason || 'Failed to add video', 'error');
-  }
 }
 
 // Renders a scrollable list of toggle rows for linking manuals⇄videos.
@@ -2458,61 +2506,6 @@ async function runDriveFolderImport() {
   hideModal();
   toast(msg, 'success');
   loadAdminVideos();
-}
-
-async function editVideoModal(id, title, desc, category) {
-  const video = (STATE.adminVideos || []).find(v => v.id === id);
-  const selManualIds = video ? (video.manual_ids || []) : [];
-  // Need the full manuals list to build the picker; reuse the cached admin
-  // list, otherwise fetch it.
-  let manuals = STATE.adminManuals;
-  if (!manuals || !manuals.length) {
-    const mr = await api('getManuals');
-    manuals = mr.ok ? mr.manuals : [];
-    STATE.adminManuals = manuals;
-  }
-  showModal(`
-    <h3>Edit Video</h3>
-    <div class="form-group">
-      <label class="form-label">Title</label>
-      <input class="form-input" id="edit_video_title" value="${title}">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Categories</label>
-      <div id="edit_video_cats" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px"><div style="padding:8px;color:var(--text3);font-size:13px">Loading…</div></div>
-      <button type="button" class="btn-secondary" style="margin-top:6px;font-size:13px" onclick="addChecklistCategory('edit_video_cats','video')">+ New category</button>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description</label>
-      <textarea class="form-input" id="edit_video_desc">${desc}</textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Attach to Manuals</label>
-      <div id="video_manuals_picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:2px 12px">
-        ${renderLinkPicker(manuals, selManualIds, 'vm-check', 'No manuals yet — upload one first.')}
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" onclick="updateVideo(${id})">Save</button>
-    </div>
-  `);
-  populateCategoryChecklist('edit_video_cats', 'video', video ? catNames(video) : (category ? [category] : []));
-}
-
-async function updateVideo(id) {
-  const categoryIds = checklistCheckedIds('edit_video_cats');
-  const manualIds = Array.from(
-    document.querySelectorAll('#video_manuals_picker input.vm-check:checked')
-  ).map(c => parseInt(c.value, 10));
-  await api('admin/updateVideo', {
-    video_id: id,
-    title: document.getElementById('edit_video_title').value.trim(),
-    description: document.getElementById('edit_video_desc').value.trim()
-  });
-  await api('admin/setVideoCategories', { video_id: id, category_ids: categoryIds });
-  await api('admin/setVideoManuals', { video_id: id, manual_ids: manualIds });
-  hideModal(); toast('Video updated', 'success'); loadAdminVideos();
 }
 
 // Deleting a video breaks every manual that linked to it (links point at the
